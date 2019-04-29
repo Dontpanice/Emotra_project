@@ -1,17 +1,22 @@
-from my_functions_remake2 import train_hmm,calc_settling_risetime,find_arclen,get_area_and_peak,calc_arclen,get_lin,korrekt_seq,cut_important,get_important_indexses,smooth,plot_individuals_with_sound_reaction,plot_individuals_with_sound,classifier1,classifier,baseline_classifier_median,baseline_classifier_mean,plot_all,separate_skinC,remove_at_indexes,plot_individuals_in_segment,compare_similar_means,cut_segment_of_df,merging,extract_signal,extract_signal2, extract_labels, separate, get_median_and_means, find_index_sound
+from my_functions_remake2 import my_svm_model,train_hmm,calc_settling_risetime,find_arclen,get_area_and_peak,calc_arclen,get_lin,korrekt_seq,cut_important,get_important_indexses,smooth,plot_individuals_with_sound_reaction,plot_individuals_with_sound,classifier1,classifier,baseline_classifier_median,baseline_classifier_mean,plot_all,separate_skinC,remove_at_indexes,plot_individuals_in_segment,compare_similar_means,cut_segment_of_df,merging,extract_signal,extract_signal2, extract_labels, separate, get_median_and_means, find_index_sound
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
-import random 
+#import random 
 import pandas as pd
-import copy
-from pomegranate import HiddenMarkovModel,NormalDistribution
-import time
+#import copy
+#import time
 
-from sklearn.model_selection import train_test_split
+#from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
-from sklearn import datasets
+#from sklearn import datasets
 from sklearn.model_selection import KFold
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.metrics import confusion_matrix
+from itertools import combinations
+
 
 
 #%%
@@ -48,7 +53,7 @@ thrown_out2,check2,remove2 = cut_segment_of_df(All_data,2,9)
 remove_at_indexes(All_data,remove2)
 #%%
 
-with open('All_data_ready.pickle', 'rb') as f:
+with open('D:/Master_thesis_data/Emotra_preprocessed/All_data_ready.pickle', 'rb') as f:
     All_data = pickle.load(f)
     
     
@@ -84,7 +89,6 @@ R_sequences,H_sequences,R_area,R_peak,H_area,H_peak,H_area_List,H_peak_List,R_ar
 #                       calculate arclength
 # =============================================================================
 # feed list of sequences. list = [sequence1], [sequence2] , returns list
-
 
 #normalisera sekvenser
 H_sequences_N = []
@@ -132,114 +136,47 @@ R_risetime_L,R_amplitud_L,R_settlingtime_L = calc_settling_risetime(R_sequences)
 
 
 
-
-
 # =============================================================================
-#       ---------------------------MODELS---------HMM--------------
+#                       Get heart rate from segments
 # =============================================================================
 
+A = all_segments[:10]
 #%%
-# combine small segments for HMM analysis:
-def concat_segments(sequences):
-    sequences_con = []
-    concated_segs = np.array([])
-    for segments_list in sequences:
-        concated_segs = np.append(concated_segs,segments_list)
-        sequences_con.append(pd.Series(concated_segs))
-        concated_segs = np.array([])
-    return sequences_con
+H_HT = []
+R_HT = []
 
-H_concat_sequences = concat_segments(H_sequences)
-R_concat_sequences = concat_segments(R_sequences)
- 
-#test1 = H_concat_sequences[:10]
-#test2 = R_concat_sequences[:10]
-
-# =============================================================================
-#                         Train HMM models and save results in Dataframe ""
-# =============================================================================
-
-
-#del H_concat_sequences[250] 
-#%%
-Nfold = 5
-# saved_models_hypo = [ [model,test] , [model2,test2] ...]
-saved_models_hypo = train_hmm(H_concat_sequences,Nfold)
-saved_models_reac = train_hmm(R_concat_sequences,Nfold)
-
-
-
-models = list(zip(saved_models_hypo,saved_models_reac))
-results = pd.DataFrame(columns=['accuracy','precision','recall','TP','FP','TN','FN'])
-for idx,model in enumerate(models):
-    hypo_mod = model[0][0]
-    reac_mod = model[1][0]
+for lista in all_segments:
+    dfs = lista[1]
+    seven_HT = []
+    for df in dfs:
+#        print(df.columns)
+        label = df['label'].iloc[0]
+        HT = df['Heart Rate']  
+        seven_HT.append(HT)
+        
+    if label == 0:        
+        R_HT.append(np.array(seven_HT))
+    elif label == 1:        
+        H_HT.append(np.array(seven_HT))
     
-    h_test = model[0][1]
-    r_test = model[1][1]
-    
-    print(r_test)
-    
-    pred_reac, acc = classifier(r_test,reac_mod,hypo_mod,'r')
-    
-    N = len(r_test) 
-    TP = N * acc
-    FP = N * (1-acc)
-    
-    pred_hypo,acc = classifier(h_test,reac_mod,hypo_mod,'h')
-    
-    N = len(h_test) 
-    TN = N * acc
-    FN = N * (1-acc)
-    
-    # control
-    if TP == 0:
-        TP = 1
-    elif FP == 0:
-        FP = 1
-    elif TN == 0:
-        TN = 1
-    elif FN == 0:
-        FN = 1
-    
-    accuracy = (TP+TN) / (TP+TN+FP+FN)
-    precision = (TP) / (TP+FP)
-    recall = (TP) / (TP+FN)
-    
-    print('\naccuracy : ', accuracy)
-    print('precision : ', precision) 
-    print('recall : ', recall)
-    print('\nTP = ', TP,'\nTN = ', TN,'\nFP = ', FP,'\nFN = ', FN)
-    
-    data = [accuracy,precision,recall,TP,FP,TN,FN]
-#    df = pd.DataFrame(columns=['accuracy','precision','recall','TP','FP','TN','FN'],data=data)
-    
-    results.loc[idx] = data
-    
-#%%
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-
+    #%%
 # =============================================================================
 #       ------------------------ MODELS---------SVM--------------
 # =============================================================================
 
-
-
-#%%
 # =============================================================================
 #                        Merge Data together
 # =============================================================================
 
 # Create Dataset
-Dataset_H = pd.DataFrame(columns=['Area','Area2','Area3','Area4','Area5','Area6','Area7','Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7','Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7','Settlingtime','Settlingtime2','Settlingtime3','Settlingtime4','Settlingtime5','Settlingtime6','Settlingtime7','Arclength1','Arclength2','Arclength3','Arclength4','Arclength5','Arclength6','Arclength7','Label'])
+Dataset_H = pd.DataFrame(columns=['Area','Area2','Area3','Area4','Area5','Area6','Area7','Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7','Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7','Settlingtime','Settlingtime2','Settlingtime3','Settlingtime4','Settlingtime5','Settlingtime6','Settlingtime7','Arclength1','Arclength2','Arclength3','Arclength4','Arclength5','Arclength6','Arclength7','HeartRate','HeartRate2','HeartRate3','HeartRate4','HeartRate5','HeartRate6','HeartRate7','Label'])
 for i in range(0,len(H_area)):
     LA  = H_area[i]
     LP = H_peak[i]
     RT = H_risetime_L[i]
     ST = H_settlingtime_L[i]
     ARC = H_arc[i]
+    HT = H_HT[i]
     
     A_L = []
     P_L = []
@@ -247,6 +184,7 @@ for i in range(0,len(H_area)):
     S_L = []
     ARC_L = []
     l2 = []
+    HT_L = []
     
     for j in range(0,7):
         
@@ -255,25 +193,28 @@ for i in range(0,len(H_area)):
         risetime = RT[j]
         settlintime = ST[j]
         ARClen = ARC[j][0]
+        Heart_Rate = HT[j][0]
         
         A_L.append(area)
         P_L.append(peak)
         R_L.append(risetime)
         S_L.append(settlintime)
         ARC_L.append(ARClen)
+        HT_L.append(Heart_Rate)
 
     l2.append(1)
 #    print(len(l2))
-    data = A_L + P_L + R_L + S_L + ARC_L + l2
+    data = A_L + P_L + R_L + S_L + ARC_L + HT_L + l2
     Dataset_H.loc[i] = data        
 
-Dataset_R = pd.DataFrame(columns=['Area','Area2','Area3','Area4','Area5','Area6','Area7','Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7','Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7','Settlingtime','Settlingtime2','Settlingtime3','Settlingtime4','Settlingtime5','Settlingtime6','Settlingtime7','Arclength1','Arclength2','Arclength3','Arclength4','Arclength5','Arclength6','Arclength7','Label'])
+Dataset_R = pd.DataFrame(columns=['Area','Area2','Area3','Area4','Area5','Area6','Area7','Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7','Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7','Settlingtime','Settlingtime2','Settlingtime3','Settlingtime4','Settlingtime5','Settlingtime6','Settlingtime7','Arclength1','Arclength2','Arclength3','Arclength4','Arclength5','Arclength6','Arclength7','HeartRate','HeartRate2','HeartRate3','HeartRate4','HeartRate5','HeartRate6','HeartRate7','Label'])
 for i in range(0,len(R_area)):
     LA  = R_area[i]
     LP = R_peak[i]
     RT = R_risetime_L[i]
     ST = R_settlingtime_L[i]
     ARC = R_arc[i]
+    HT = R_HT[i]
     
     A_L = []
     P_L = []
@@ -281,6 +222,7 @@ for i in range(0,len(R_area)):
     S_L = []
     l2 = []
     ARC_L = []
+    HT_L = []
     
     for j in range(0,7):
         
@@ -289,20 +231,22 @@ for i in range(0,len(R_area)):
         risetime = RT[j]
         settlintime = ST[j]
         ARClen = ARC[j][0]
+        Heart_Rate = HT[j][0]
         
         A_L.append(area)
         P_L.append(peak)
         R_L.append(risetime)
         S_L.append(settlintime)
         ARC_L.append(ARClen)
+        HT_L.append(Heart_Rate)
         
     l2.append(0)
 #    print(len(l2))
-    data = A_L + P_L + R_L + S_L + ARC_L + l2
+    data = A_L + P_L + R_L + S_L + ARC_L + HT_L + l2
     Dataset_R.loc[i] = data                
 
 
-Dataset = pd.DataFrame(columns=['Area','Area2','Area3','Area4','Area5','Area6','Area7','Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7','Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7','Settlingtime','Settlingtime2','Settlingtime3','Settlingtime4','Settlingtime5','Settlingtime6','Settlingtime7','Arclength1','Arclength2','Arclength3','Arclength4','Arclength5','Arclength6','Arclength7','Label'])
+Dataset = pd.DataFrame(columns=['Area','Area2','Area3','Area4','Area5','Area6','Area7','Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7','Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7','Settlingtime','Settlingtime2','Settlingtime3','Settlingtime4','Settlingtime5','Settlingtime6','Settlingtime7','Arclength1','Arclength2','Arclength3','Arclength4','Arclength5','Arclength6','Arclength7','HeartRate','HeartRate2','HeartRate3','HeartRate4','HeartRate5','HeartRate6','HeartRate7','Label'])
 Dataset = Dataset.append(Dataset_H)
 Dataset = Dataset.append(Dataset_R)
 
@@ -310,94 +254,98 @@ Dataset = Dataset.append(Dataset_R)
 #%%   
 
 
-from sklearn.model_selection import KFold
-from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix
-
 
 # =============================================================================
-#             Change here to consider different features in dataset
+#   Change here to consider different features in dataset before feeding SVM
 # =============================================================================
-# Area + amplitude
-#X = Dataset.iloc[:, np.arange(0,14)]
-#y = Dataset.iloc[:, -1]
-
-# Area + amplitude + raiseing time 
-#X = Dataset.iloc[:, np.arange(0,21)]
-#y = Dataset.iloc[:, -1]
-
-# Area + amplitude + raiseing time +settlingtime
-#X = Dataset.iloc[:, np.arange(0,28)]
-#y = Dataset.iloc[:, -1]
-
-# Area + amplitude + raiseing time +settlingtime + ARClength
-X = Dataset.iloc[:, np.arange(0,35)]
-y = Dataset.iloc[:, -1]
 
 
-results_df = pd.DataFrame(columns=['accuracy','precision','recall','F1'])
-results = []
+Area = Dataset.iloc[:, np.arange(0,7)].reset_index(drop=True)
+Amplitude = Dataset.iloc[:, np.arange(7,14)].reset_index(drop=True)
+Risetime = Dataset.iloc[:, np.arange(14,21)].reset_index(drop=True)
+Settlingetime = Dataset.iloc[:, np.arange(21,28)].reset_index(drop=True)
+Arclength = Dataset.iloc[:, np.arange(28,35)].reset_index(drop=True)
+HeartRate = Dataset.iloc[:, np.arange(35,42)].reset_index(drop=True)
 
-kf = KFold(n_splits=5, shuffle = True)
-cm_L = []
-for train_index,test_index in kf.split(X):
-#   print("TRAIN:", train_index, "TEST:", test_index)
-    X_train, X_test = X.iloc[train_index], X.iloc[test_index]
-    y_train, y_test = y.iloc[train_index], y.iloc[test_index]
 
-# Splitting the dataset into the Training set and Test set
-#from sklearn.model_selection import train_test_split
-#X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 0)
+dfs = [Area,Amplitude,Risetime,Settlingetime,Arclength,HeartRate]
+dfs_idx = [0,1,2,3,4,5]
+#dfs_names = ['Area','Amplitude','Risetime','Settlingetime','Arclength']
+dfs_names = ['AE','AM','RT','ST','ARC','HR']
 
-# Feature Scaling
-    sc = StandardScaler()
-    X_train = sc.fit_transform(X_train)
-    X_test = sc.transform(X_test)
-    
-    
-    # Fitting classifier to the Training set
 
-    
-    classifier = SVC(kernel ='rbf', random_state = 0)
-    classifier.fit(X_train,y_train) 
-    
-    # Predicting the Test set results
-    y_pred = classifier.predict(X_test)
-    
-    
-    # Making the Confusion Matrix
-    cm = confusion_matrix(y_test, y_pred)
+All_comb_res = []
+All_avgs = []
+for N_comb in range (2,len(dfs_idx)+1):
+# Get all combinations of length 2 
+    comb = combinations(dfs_idx, N_comb) 
     
     
-    cm_L.append(cm)
+    all_comb = [] 
+    for combinationss in list(comb):
+        df = pd.DataFrame( index = np.arange(0,1012))
+        name = ''
+        for idx in combinationss:
+            df = df.join(dfs[idx])
+            name = name + ' + ' + dfs_names[idx]
+    #        print(idx)
+    #        print(df.join(dfs[idx]))
+            
+        all_comb.append([df,name])
+        
+    All_res = []
+    Avg_res_df = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
+    for idx,combination in enumerate(all_comb):
+        df = combination[0]
+        name = combination[1]
+        
+        X = df
+        y = Dataset.iloc[:, -1]
+        print('\n')
+        print('This is test for : ',name)
+        results_df = my_svm_model(X,y)
+        results_df['Combination'] = [name]*5
+        All_res.append( results_df)
+        
+        
+        #calculate avg results from cross validation
+        
+        accuracy = np.mean(results_df['accuracy'])
+        presicion = np.mean(results_df['precision'])
+        recall = np.mean(results_df['recall'])
+        F1 = np.mean(results_df['F1'])
+        
+        Avg_res_df.loc[idx] = [accuracy,presicion,recall,F1,name]
+        
+        
     
-    TN, FP, FN, TP = cm.ravel()
-#
-    accuracy = (TP+TN) / (TP+TN+FP+FN)
-    precision = (TP) / (TP+FP)
-    recall = (TP) / (TP+FN)
-    F1 = 2*((precision*recall)/(precision+recall))
+    All_comb_res.append(All_res)
+    All_avgs.append(Avg_res_df)
+        
+        
+    #%%
     
-    
-    data = [accuracy,precision,recall,F1]
-    results.append(data)
-    
-    
+result_df_export = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
+for lista in All_comb_res:
+    for res in lista: 
+    #    print(res)
+        result_df_export= result_df_export.append(res)
 
-for idx,lista in enumerate(results):
-#    print(lista)
-    results_df.loc[idx] = lista 
+result_df_export.to_excel(excel_writer = 'SVM_results/SVM_results_2.xlsx')
 #%%
-accuracy = np.mean(results_df['accuracy'])
-presicion = np.mean(results_df['precision'])
-recall = np.mean(results_df['recall'])
-F1 = np.mean(results_df['F1'])
 
-print('AVG accuracy  : ',accuracy) 
-print('AVG presicion : ',presicion) 
-print('AVG recall    : ',recall) 
-print('AVG F1        : ',F1)   
+result_df_export_avg = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
+for df in All_avgs:
+    result_df_export_avg = result_df_export_avg.append(df)
+#    print(result_df_export_avg.append(df))
+    
+
+#print(result_df_export_avg) 
+#result_df_export_avg = result_df_export_avg.T
+
+#print(result_df_export_avg[4]) 
+result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg_2.xlsx')
+
 
 #%%
 from sklearn.model_selection import cross_val_score

@@ -48,7 +48,7 @@ thrown_out2,check2,remove2 = cut_segment_of_df(All_data,2,9)
 remove_at_indexes(All_data,remove2)
 #%%
 
-with open('All_data_ready.pickle', 'rb') as f:
+with open('D:/Master_thesis_data/Emotra_preprocessed/All_data_ready.pickle', 'rb') as f:
     All_data = pickle.load(f)
     
     
