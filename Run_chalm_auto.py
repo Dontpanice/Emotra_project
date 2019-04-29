@@ -276,6 +276,7 @@ dfs_names = ['AE','AM','RT','ST','ARC','HR']
 
 
 All_comb_res = []
+All_avgs = []
 for N_comb in range (2,len(dfs_idx)+1):
 # Get all combinations of length 2 
     comb = combinations(dfs_idx, N_comb) 
@@ -305,34 +306,46 @@ for N_comb in range (2,len(dfs_idx)+1):
         print('This is test for : ',name)
         results_df = my_svm_model(X,y)
         results_df['Combination'] = [name]*5
-    #    print(X)1
+        All_res.append( results_df)
         
+        
+        #calculate avg results from cross validation
         
         accuracy = np.mean(results_df['accuracy'])
         presicion = np.mean(results_df['precision'])
         recall = np.mean(results_df['recall'])
         F1 = np.mean(results_df['F1'])
         
-        
-        
         Avg_res_df.loc[idx] = [accuracy,presicion,recall,F1,name]
-        All_res.append( results_df)
+        
+        
     
     All_comb_res.append(All_res)
+    All_avgs.append(Avg_res_df)
         
         
     #%%
     
 result_df_export = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
-for res in All_res:
-    for 
-#    print(res)
-    result_df_export= result_df_export.append(res)
+for lista in All_comb_res:
+    for res in lista: 
+    #    print(res)
+        result_df_export= result_df_export.append(res)
 
 result_df_export.to_excel(excel_writer = 'SVM_results/SVM_results_2.xlsx')
+#%%
 
-Avg_res_df = Avg_res_df.T
-Avg_res_df.to_excel(excel_writer = 'SVM_results/SVM_results_avg_2.xlsx')
+result_df_export_avg = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
+for df in All_avgs:
+    result_df_export_avg = result_df_export_avg.append(df)
+#    print(result_df_export_avg.append(df))
+    
+
+#print(result_df_export_avg) 
+#result_df_export_avg = result_df_export_avg.T
+
+#print(result_df_export_avg[4]) 
+result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg_2.xlsx')
 
 
 #%%
