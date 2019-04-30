@@ -1,4 +1,4 @@
-from my_functions_remake2 import train_hmm,calc_settling_risetime,find_arclen,get_area_and_peak,calc_arclen,get_lin,korrekt_seq,cut_important,get_important_indexses,smooth,plot_individuals_with_sound_reaction,plot_individuals_with_sound,classifier1,classifier,baseline_classifier_median,baseline_classifier_mean,plot_all,separate_skinC,remove_at_indexes,plot_individuals_in_segment,compare_similar_means,cut_segment_of_df,merging,extract_signal,extract_signal2, extract_labels, separate, get_median_and_means, find_index_sound
+from my_functions_emotra import my_hmm,train_hmm,calc_settling_risetime,find_arclen,get_area_and_peak,calc_arclen,get_lin,korrekt_seq,cut_important,get_important_indexses,smooth,plot_individuals_with_sound_reaction,plot_individuals_with_sound,classifier1,classifier,baseline_classifier_median,baseline_classifier_mean,plot_all,separate_skinC,remove_at_indexes,plot_individuals_in_segment,compare_similar_means,cut_segment_of_df,merging,extract_signal,extract_signal2, extract_labels, separate, get_median_and_means, find_index_sound
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
@@ -94,22 +94,52 @@ def concat_segments(sequences):
 H_concat_sequences = concat_segments(H_sequences)
 R_concat_sequences = concat_segments(R_sequences)
  
-#test1 = H_concat_sequences[:10]
-#test2 = R_concat_sequences[:10]
+
+#remove id250 because wrong length
+del H_concat_sequences[250]
+
 
 # =============================================================================
 #                         Train HMM models and save results in Dataframe ""
 # =============================================================================
-
-
-#del H_concat_sequences[250] 
 #%%
-Nfold = 5
+# =============================================================================
+#                         Without cross validation
+# =============================================================================
 # saved_models_hypo = [ [model,test] , [model2,test2] ...]
+
+H_concat_sequences = [np.array(n) for n in H_concat_sequences]
+R_concat_sequences = [np.array(n) for n in R_concat_sequences]
+
+#model_Hypo = HiddenMarkovModel.from_samples(NormalDistribution, n_components=5, X=H_concat_sequences)
+
+saved_models_hypo = my_hmm(H_concat_sequences)
+saved_models_reac = my_hmm(R_concat_sequences)
+
+
+hypo_mod = saved_models_hypo[0][0]
+h_test = saved_models_hypo[0][1]
+#
+reac_mod = saved_models_reac[0][0]
+r_test = saved_models_reac[0][1]
+
+pred_reac, R_acc = classifier(r_test,reac_mod,hypo_mod,'r')
+pred_hypo,H_acc = classifier(h_test,reac_mod,hypo_mod,'h')
+
+
+
+
+
+
+#%%
+# =============================================================================
+#                       With cross validation
+# =============================================================================
+Nfold = 5
 saved_models_hypo = train_hmm(H_concat_sequences,Nfold)
 saved_models_reac = train_hmm(R_concat_sequences,Nfold)
 
-
+finished_training = []
 
 models = list(zip(saved_models_hypo,saved_models_reac))
 results = pd.DataFrame(columns=['accuracy','precision','recall','TP','FP','TN','FN'])
@@ -122,39 +152,46 @@ for idx,model in enumerate(models):
     
     print(r_test)
     
-    pred_reac, acc = classifier(r_test,reac_mod,hypo_mod,'r')
+    pred_reac, R_acc = classifier(r_test,reac_mod,hypo_mod,'r')
+    pred_hypo,H_acc = classifier(h_test,reac_mod,hypo_mod,'h')
     
-    N = len(r_test) 
-    TP = N * acc
-    FP = N * (1-acc)
+    finished_training.append([pred_reac, R_acc])
+    finished_training.append([pred_hypo, H_acc])
     
-    pred_hypo,acc = classifier(h_test,reac_mod,hypo_mod,'h')
     
-    N = len(h_test) 
-    TN = N * acc
-    FN = N * (1-acc)
     
-    # control
-    if TP == 0:
-        TP = 1
-    elif FP == 0:
-        FP = 1
-    elif TN == 0:
-        TN = 1
-    elif FN == 0:
-        FN = 1
-    
-    accuracy = (TP+TN) / (TP+TN+FP+FN)
-    precision = (TP) / (TP+FP)
-    recall = (TP) / (TP+FN)
-    
-    print('\naccuracy : ', accuracy)
-    print('precision : ', precision) 
-    print('recall : ', recall)
-    print('\nTP = ', TP,'\nTN = ', TN,'\nFP = ', FP,'\nFN = ', FN)
-    
-    data = [accuracy,precision,recall,TP,FP,TN,FN]
-#    df = pd.DataFrame(columns=['accuracy','precision','recall','TP','FP','TN','FN'],data=data)
-    
-    results.loc[idx] = data
+    #%%
+#    N = len(r_test) 
+#    TP = N * acc
+#    FP = N * (1-acc)
+#    
+#    
+#    
+#    N = len(h_test) 
+#    TN = N * acc
+#    FN = N * (1-acc)
+#    
+#    # control
+#    if TP == 0:
+#        TP = 1
+#    elif FP == 0:
+#        FP = 1
+#    elif TN == 0:
+#        TN = 1
+#    elif FN == 0:
+#        FN = 1
+#    
+#    accuracy = (TP+TN) / (TP+TN+FP+FN)
+#    precision = (TP) / (TP+FP)
+#    recall = (TP) / (TP+FN)
+#    
+#    print('\naccuracy : ', accuracy)
+#    print('precision : ', precision) 
+#    print('recall : ', recall)
+#    print('\nTP = ', TP,'\nTN = ', TN,'\nFP = ', FP,'\nFN = ', FN)
+#    
+#    data = [accuracy,precision,recall,TP,FP,TN,FN]
+##    df = pd.DataFrame(columns=['accuracy','precision','recall','TP','FP','TN','FN'],data=data)
+#    
+#    results.loc[idx] = data
     

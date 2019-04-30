@@ -75,7 +75,7 @@ all_segments = cut_important(All_data,indexes_to_cut)
 #Format as all_segments [ ID, [data]]   ---> [data] = [df,df,df,df,df,df,df]
 R_sequences,H_sequences,R_area,R_peak,H_area,H_peak,H_area_List,H_peak_List,R_area_List,R_peak_List = get_area_and_peak(all_segments)
 
-# list of segment sequences                                            list = [sequence1], [sequence2]
+# list of segment sequences  1-7                                       list = [sequence1], [sequence2]
 #R_sequences
 #H_sequences
 # list of segment sequences individual Areas  and peaks                sequence = [area1,area2,area3....]
@@ -86,7 +86,7 @@ R_sequences,H_sequences,R_area,R_peak,H_area,H_peak,H_area_List,H_peak_List,R_ar
 #H_peak_List
       
 # =============================================================================
-#                       calculate arclength
+#   calculate arclength --- normalize y axis, calc arclength, amplify numbers so above value of 0
 # =============================================================================
 # feed list of sequences. list = [sequence1], [sequence2] , returns list
 
@@ -120,10 +120,7 @@ for lista in R_sequences:
         minilista.append(nomalized_bumped)
     R_sequences_N.append(minilista)
     
-
     
-
-
 H_arc = find_arclen(H_sequences_N)
 R_arc = find_arclen(R_sequences_N)
 
@@ -140,8 +137,6 @@ R_risetime_L,R_amplitud_L,R_settlingtime_L = calc_settling_risetime(R_sequences)
 #                       Get heart rate from segments
 # =============================================================================
 
-A = all_segments[:10]
-#%%
 H_HT = []
 R_HT = []
 
@@ -159,10 +154,7 @@ for lista in all_segments:
     elif label == 1:        
         H_HT.append(np.array(seven_HT))
     
-    #%%
-# =============================================================================
-#       ------------------------ MODELS---------SVM--------------
-# =============================================================================
+
 
 # =============================================================================
 #                        Merge Data together
@@ -253,7 +245,9 @@ Dataset = Dataset.append(Dataset_R)
 
 #%%   
 
-
+# =============================================================================
+#       ------------------------ MODELS---------SVM--------------
+# =============================================================================
 
 # =============================================================================
 #   Change here to consider different features in dataset before feeding SVM
@@ -322,8 +316,11 @@ for N_comb in range (2,len(dfs_idx)+1):
     All_comb_res.append(All_res)
     All_avgs.append(Avg_res_df)
         
-        
-    #%%
+    
+    
+# ============================================================================
+#                       Save results in xlsx format
+# =============================================================================
     
 result_df_export = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
 for lista in All_comb_res:

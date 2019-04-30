@@ -114,24 +114,22 @@ def reshape(lista,minimum):
     return reshaped
 
 def train_hmm(Train_hypo,Nfold):
-    kf = KFold(n_splits=Nfold)
+    kf = KFold(n_splits=Nfold,shuffle = True)
     
     saved_models_hypo = []
-
+    
     
 #    minimum2 = findmin(Train_hypo)
 #    reshaped_hypo = reshape(Train_hypo, minimum2)      
     scaler2 = preprocessing.StandardScaler().fit(Train_hypo)
     X_train_transformed_hypo = scaler2.transform(Train_hypo)
-    
-    
     random.seed( 808 )
     
     #print(kf.get_n_splits(x_Reac_train))
     for train,test in kf.split(X_train_transformed_hypo):
     #    hypo_eaxmples = random.sample(X_train_transformed_hypo, 10)
-        train = X_train_transformed_hypo[train]
-        test = X_train_transformed_hypo[test]
+#        train = X_train_transformed_hypo[train]
+#        test = X_train_transformed_hypo[test]
         hypo_eaxmples = X_train_transformed_hypo[:10]  
         model_Hypo = HiddenMarkovModel()
         #inititiera modellens parametrar från ett exempel
@@ -143,6 +141,55 @@ def train_hmm(Train_hypo,Nfold):
         #save the model
         saved_models_hypo.append([model_Hypo,test])
 #        accompan_test_hypo.append(test)
+        
+    return saved_models_hypo
+
+
+
+def my_hmm(Train_hypo):
+    random.seed( 808 )
+#    kf = KFold(n_splits=Nfold,shuffle = True)
+#    Train_hypo = list(Train_hypo)
+    saved_models_hypo = []
+    
+
+#    scaler2 = preprocessing.StandardScaler().fit(Train_hypo)
+#    X_train_transformed_hypo = scaler2.transform(Train_hypo)
+    
+    train,test= train_test_split(Train_hypo, shuffle = True)
+    
+# Feature Scaling
+    sc = StandardScaler()
+    train = sc.fit_transform(train)
+    test = sc.transform(test)
+    
+    
+    # Fitting classifier to the Training set
+    model_Hypo = HiddenMarkovModel()
+    #inititiera modellens parametrar från ett exempel
+    hypo_eaxmples = random.sample(Train_hypo, 10)
+    model_Hypo = HiddenMarkovModel.from_samples(NormalDistribution, n_components=5, X=hypo_eaxmples)  
+    #train the model
+    start_time = time.time()
+    model_Hypo.fit(train, algorithm='baum-welch')
+    print("--- %s seconds ---" % (time.time() - start_time))
+    #save the model
+    saved_models_hypo.append([model_Hypo,test])
+    
+    # Predicting the Test set results
+#    y_pred = classifier.predict(X_test)
+    
+    
+    # Making the Confusion Matrix
+#    cm = confusion_matrix(y_test, y_pred)
+        
+
+    
+    
+    
+
+
+
         
     return saved_models_hypo
 
@@ -993,7 +1040,6 @@ def classifier1(lista,model_Reac,model_Hypo):
 
 
 def classifier(test_list,model_Reac,model_Hypo,typee):  
-    N = len(test_list)
     count_reac = 0
     count_hypo = 0    
     predicted = []
@@ -1003,8 +1049,13 @@ def classifier(test_list,model_Reac,model_Hypo,typee):
 #    FN = 0
     for sequence in test_list:
 #        print(sequence)
+
         prob_reac = model_Reac.log_probability(list(sequence))
         prob_hypo = model_Hypo.log_probability(list(sequence))
+        
+#        print(prob_reac)
+#        print(prob_hypo)
+        
         # check accuracy
         if prob_reac > prob_hypo:
             count_reac += 1
