@@ -70,18 +70,10 @@ all_segments = cut_important(All_data,indexes_to_cut)
 #Format as all_segments [ ID, [data]]   ---> [data] = [df,df,df,df,df,df,df]
 R_sequences,H_sequences,R_area,R_peak,H_area,H_peak,H_area_List,H_peak_List,R_area_List,R_peak_List = get_area_and_peak(all_segments)
 
-# list of segment sequences                                            list = [sequence1], [sequence2]
-#R_sequences
-#H_sequences
-# list of segment sequences individual Areas  and peaks                sequence = [area1,area2,area3....]
-#R_area
-#R_peak
-# list of segment sequences concatinated Areas and peaks               sequence = [area] 
-#H_area_List
-#H_peak_List
+# =============================================================================
+#             combine small segments for HMM analysis:
+# =============================================================================
 
-#%%
-# combine small segments for HMM analysis:
 def concat_segments(sequences):
     sequences_con = []
     concated_segs = np.array([])
@@ -104,7 +96,8 @@ del H_concat_sequences[250]
 # =============================================================================
 #%%
 # =============================================================================
-#                         Without cross validation
+#                Standardize data  + train
+#                  Without cross validation
 # =============================================================================
 # saved_models_hypo = [ [model,test] , [model2,test2] ...]
 
@@ -122,18 +115,50 @@ h_test = saved_models_hypo[0][1]
 #
 reac_mod = saved_models_reac[0][0]
 r_test = saved_models_reac[0][1]
-
+#%%
 pred_reac, R_acc = classifier(r_test,reac_mod,hypo_mod,'r')
 pred_hypo,H_acc = classifier(h_test,reac_mod,hypo_mod,'h')
 
 
+#%%
 
 
-
+res = []
+for sequence in h_test[:10]:
+#    print('1')
+    print('prob reac  ',sequence)
+    
+    prob_reac = reac_mod.log_probability(list(sequence))
+    prob_hypo = hypo_mod.log_probability(list(sequence))
+    print('prob reac  ',prob_reac)    
+    print('prob hypo  ',prob_hypo)    
+    
+    if prob_reac > prob_hypo:
+#        count_reac += 1
+        res.append(0)
+    else:
+#        count_hypo +=1
+        res.append(1)
+     #%%   
+        
+res2 = []
+for sequence in r_test:
+#    print('1')
+    
+    prob_reac = reac_mod.log_probability(list(sequence))
+    prob_hypo = hypo_mod.log_probability(list(sequence))
+        
+    if prob_reac > prob_hypo:
+#        count_reac += 1
+        res2.append(0)
+    else:
+#        count_hypo +=1
+        res2.append(1)
 
 #%%
 # =============================================================================
-#                       With cross validation
+#                Standardize data  + train
+#                  with cross validation
 # =============================================================================
 Nfold = 5
 saved_models_hypo = train_hmm(H_concat_sequences,Nfold)

@@ -565,6 +565,7 @@ def get_area_and_peak (all_segments):
     R_sequences = []
     H_sequences = []
     
+    # separate area and amplitude
     R_area = []
     R_peak = []
     

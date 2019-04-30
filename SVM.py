@@ -75,16 +75,8 @@ all_segments = cut_important(All_data,indexes_to_cut)
 #Format as all_segments [ ID, [data]]   ---> [data] = [df,df,df,df,df,df,df]
 R_sequences,H_sequences,R_area,R_peak,H_area,H_peak,H_area_List,H_peak_List,R_area_List,R_peak_List = get_area_and_peak(all_segments)
 
-# list of segment sequences  1-7                                       list = [sequence1], [sequence2]
-#R_sequences
-#H_sequences
-# list of segment sequences individual Areas  and peaks                sequence = [area1,area2,area3....]
-#R_area
-#R_peak
-# list of segment sequences concatinated Areas and peaks               sequence = [area] 
-#H_area_List
-#H_peak_List
-      
+#H_area = [seg1,seg2,seg3] 
+
 # =============================================================================
 #   calculate arclength --- normalize y axis, calc arclength, amplify numbers so above value of 0
 # =============================================================================
@@ -157,7 +149,7 @@ for lista in all_segments:
 
 
 # =============================================================================
-#                        Merge Data together
+#                        Merge Data together into one dataframe
 # =============================================================================
 
 # Create Dataset
@@ -407,3 +399,33 @@ plt.show()
 
 
 #%%
+
+
+
+
+A = all_segments[:10]
+
+before = []
+
+for lista in A:
+    Id = lista[0]
+    DFs = lista[1]
+    for df in DFs:
+#        Id = lista2[0]
+        signal = df['skin conductance']
+        before.append(signal)
+        df_roll = pd.DataFrame(signal)
+        
+        smoothed = df_roll.rolling(window=window).mean().values
+
+
+#%%
+        
+        
+        
+        
+        
+        
+        
+    
+
