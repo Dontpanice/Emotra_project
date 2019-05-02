@@ -57,7 +57,7 @@ with open('D:/Master_thesis_data/Emotra_preprocessed/All_data_ready.pickle', 'rb
     All_data = pickle.load(f)
     
     
-#%%
+
 # =============================================================================
 #                           Smooth Dataframe 
 # =============================================================================
@@ -146,8 +146,63 @@ for lista in all_segments:
     elif label == 1:        
         H_HT.append(np.array(seven_HT))
     
+# =============================================================================
+#                        Get mean and median for each sequence 
+# =============================================================================
+#%%
 
 
+H_segmentmeans = [np.log(np.mean(item)) for item in H_sequences]
+R_segmentmeans = [np.log(np.mean(item)) for item in R_sequences]
+
+Groups = [H_segmentmeans,R_segmentmeans ]
+
+fig, ax = plt.subplots(figsize = (10,10))
+pos = np.array(range(len(Groups))) + 1
+bp = ax.boxplot(Groups, sym='k+', positions=pos,
+                notch=1, bootstrap=5000)
+
+
+ax.set_ylabel('(area log(values)')
+plt.setp(bp['whiskers'], color='k', linestyle='-')
+plt.setp(bp['fliers'], markersize=3.0)
+plt.title('7segments')
+ax.set_xlabel('Boxplots')
+plt.xticks([1, 2, 3,4,5,6,7], ['Hypo', 'reactive', 'bin2','bin3','bin4', 'bin5', 'bin6'])
+plt.show()
+
+
+# calculate means for sequences
+R_means = [np.mean(item)for item in R_segmentmeans]
+H_means = [np.mean(item) for item in H_segmentmeans]
+
+#calculate relative means
+H_mean = np.mean(H_segmentmeans)
+R_mean = np.mean(R_segmentmeans)
+R_relativ_means = [abs(item)/H_mean for item in R_segmentmeans]
+H_relativ_means = [abs(item)/R_mean for item in H_segmentmeans]
+
+Groups = [H_relativ_means,R_relativ_means ]
+
+fig, ax = plt.subplots(figsize = (10,10))
+pos = np.array(range(len(Groups))) + 1
+bp = ax.boxplot(Groups, sym='k+', positions=pos,
+                notch=1, bootstrap=5000)
+
+ax.set_xlabel('Boxplots')
+ax.set_ylabel('(area log(values)')
+plt.setp(bp['whiskers'], color='k', linestyle='-')
+plt.setp(bp['fliers'], markersize=3.0)
+plt.title('7segments')
+plt.xticks([1, 2, 3,4,5,6,7], ['Hypo', 'reactive', 'bin2','bin3','bin4', 'bin5', 'bin6'])
+plt.show()
+
+
+
+
+
+
+#%%
 # =============================================================================
 #                        Merge Data together into one dataframe
 # =============================================================================
@@ -161,6 +216,7 @@ for i in range(0,len(H_area)):
     ST = H_settlingtime_L[i]
     ARC = H_arc[i]
     HT = H_HT[i]
+
     
     A_L = []
     P_L = []
@@ -199,6 +255,7 @@ for i in range(0,len(R_area)):
     ST = R_settlingtime_L[i]
     ARC = R_arc[i]
     HT = R_HT[i]
+
     
     A_L = []
     P_L = []
@@ -226,14 +283,22 @@ for i in range(0,len(R_area)):
         
     l2.append(0)
 #    print(len(l2))
-    data = A_L + P_L + R_L + S_L + ARC_L + HT_L + l2
+    data = A_L + P_L + R_L + S_L + ARC_L + HT_L  + l2
     Dataset_R.loc[i] = data                
 
 
 Dataset = pd.DataFrame(columns=['Area','Area2','Area3','Area4','Area5','Area6','Area7','Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7','Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7','Settlingtime','Settlingtime2','Settlingtime3','Settlingtime4','Settlingtime5','Settlingtime6','Settlingtime7','Arclength1','Arclength2','Arclength3','Arclength4','Arclength5','Arclength6','Arclength7','HeartRate','HeartRate2','HeartRate3','HeartRate4','HeartRate5','HeartRate6','HeartRate7','Label'])
-Dataset = Dataset.append(Dataset_H)
-Dataset = Dataset.append(Dataset_R)
 
+# add means
+Dataset_H['means'] = [np.mean(item) for item in H_segmentmeans]
+Dataset_R['means'] = [np.mean(item)for item in R_segmentmeans]
+
+# add relative means
+Dataset_R['relative_mean'] = R_relativ_means
+Dataset_H['relative_mean'] = H_relativ_means
+
+Dataset = Dataset.append(Dataset_R)
+Dataset = Dataset.append(Dataset_H)
 
 #%%   
 
@@ -253,11 +318,14 @@ Settlingetime = Dataset.iloc[:, np.arange(21,28)].reset_index(drop=True)
 Arclength = Dataset.iloc[:, np.arange(28,35)].reset_index(drop=True)
 HeartRate = Dataset.iloc[:, np.arange(35,42)].reset_index(drop=True)
 
+relative_means = Dataset['relative_mean'].reset_index(drop=True)
+means = Dataset['means'].reset_index(drop=True)
 
-dfs = [Area,Amplitude,Risetime,Settlingetime,Arclength,HeartRate]
-dfs_idx = [0,1,2,3,4,5]
+
+dfs = [Area,Amplitude,Risetime,Settlingetime,Arclength,HeartRate,relative_means,means]
+dfs_idx = [0,1,2,3,4,5,6,7]
 #dfs_names = ['Area','Amplitude','Risetime','Settlingetime','Arclength']
-dfs_names = ['AE','AM','RT','ST','ARC','HR']
+dfs_names = ['AE','AM','RT','ST','ARC','HR','Rel_M','M']
 
 
 All_comb_res = []
@@ -286,7 +354,7 @@ for N_comb in range (2,len(dfs_idx)+1):
         name = combination[1]
         
         X = df
-        y = Dataset.iloc[:, -1]
+        y = Dataset['Label']
         print('\n')
         print('This is test for : ',name)
         results_df = my_svm_model(X,y)
@@ -406,6 +474,7 @@ plt.show()
 A = all_segments[:10]
 
 before = []
+after = []
 
 for lista in A:
     Id = lista[0]
@@ -414,10 +483,12 @@ for lista in A:
 #        Id = lista2[0]
         signal = df['skin conductance']
         before.append(signal)
+        
         df_roll = pd.DataFrame(signal)
         
+        window = 
         smoothed = df_roll.rolling(window=window).mean().values
-
+        after.append(smoothed)
 
 #%%
         
