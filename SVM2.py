@@ -327,29 +327,26 @@ dfs_idx = [0,1,2,3,4,5,6,7]
 #dfs_names = ['Area','Amplitude','Risetime','Settlingetime','Arclength']
 dfs_names = ['AE','AM','RT','ST','ARC','HR','Rel_M','M']
 
+dfs_data_n_names = list(zip(dfs,dfs_names))
 
-check = []
+#check = []
 
 All_comb_res = []
 All_avgs = []
-for N_comb in range (2,len(dfs_idx)+1):
+for N_comb in range (2,len(dfs_data_n_names)+1):
 # Get all combinations of length 2 
     comb = combinations(dfs_idx, N_comb) 
-    
+    A = list(comb)
     
     all_comb = [] 
     for combinationss in list(comb):
         df = pd.DataFrame( index = np.arange(0,1012))
         name = ''
         for idx in combinationss:
-            df = df.join(dfs[idx])
-#            print(df.columns)
+            df = df.join(dfs_data_n_names[idx][0])
+            name = name + ' + ' + dfs_data_n_names[idx][1]
             
-            
-            
-            name = name + ' + ' + dfs_names[idx]
-            
-            check.append([list(df.columns),name])
+            check.append([list(df.columns)[0],name])
             
     #        print(idx)
     #        print(df.join(dfs[idx]))
