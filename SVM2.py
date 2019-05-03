@@ -202,7 +202,7 @@ plt.show()
 
 
 
-#%%
+#
 # =============================================================================
 #                        Merge Data together into one dataframe
 # =============================================================================
@@ -285,7 +285,7 @@ for i in range(0,len(R_area)):
 #    print(len(l2))
     data = A_L + P_L + R_L + S_L + ARC_L + HT_L  + l2
     Dataset_R.loc[i] = data                
-
+#%%
 
 Dataset = pd.DataFrame(columns=['Area','Area2','Area3','Area4','Area5','Area6','Area7','Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7','Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7','Settlingtime','Settlingtime2','Settlingtime3','Settlingtime4','Settlingtime5','Settlingtime6','Settlingtime7','Arclength1','Arclength2','Arclength3','Arclength4','Arclength5','Arclength6','Arclength7','HeartRate','HeartRate2','HeartRate3','HeartRate4','HeartRate5','HeartRate6','HeartRate7','Label'])
 
@@ -300,7 +300,7 @@ Dataset_H['relative_mean'] = H_relativ_means
 Dataset = Dataset.append(Dataset_R)
 Dataset = Dataset.append(Dataset_H)
 
-#%%   
+#
 
 # =============================================================================
 #       ------------------------ MODELS---------SVM--------------
@@ -310,16 +310,23 @@ Dataset = Dataset.append(Dataset_H)
 #   Change here to consider different features in dataset before feeding SVM
 # =============================================================================
 
-
-Area = Dataset.iloc[:, np.arange(0,7)].reset_index(drop=True)
-Amplitude = Dataset.iloc[:, np.arange(7,14)].reset_index(drop=True)
-Risetime = Dataset.iloc[:, np.arange(14,21)].reset_index(drop=True)
-Settlingetime = Dataset.iloc[:, np.arange(21,28)].reset_index(drop=True)
-Arclength = Dataset.iloc[:, np.arange(28,35)].reset_index(drop=True)
-HeartRate = Dataset.iloc[:, np.arange(35,42)].reset_index(drop=True)
-
-relative_means = Dataset['relative_mean'].reset_index(drop=True)
+Area = Dataset[['Area','Area2','Area3','Area4','Area5','Area6','Area7']].reset_index(drop=True)
+Amplitude = Dataset[['Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7']].reset_index(drop=True)
+Risetime = Dataset[['Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7']].reset_index(drop=True)
+Settlingetime = Dataset[['Settlingtime','Settlingtime2','Settlingtime3','Settlingtime4','Settlingtime5','Settlingtime6','Settlingtime7']].reset_index(drop=True)
+Arclength = Dataset[['Arclength1','Arclength2','Arclength3','Arclength4','Arclength5','Arclength6','Arclength7']].reset_index(drop=True)
+HeartRate = Dataset[['HeartRate','HeartRate2','HeartRate3','HeartRate4','HeartRate5','HeartRate6','HeartRate7']].reset_index(drop=True)
+#relative_means = Dataset['relative_mean'].reset_index(drop=True)
 means = Dataset['means'].reset_index(drop=True)
+Label = Dataset['Label']
+
+#Area = Dataset.iloc[:, np.arange(0,7)].reset_index(drop=True)
+#Amplitude = Dataset.iloc[:, np.arange(7,14)].reset_index(drop=True)
+#Risetime = Dataset.iloc[:, np.arange(14,21)].reset_index(drop=True)
+#Settlingetime = Dataset.iloc[:, np.arange(21,28)].reset_index(drop=True)
+#Arclength = Dataset.iloc[:, np.arange(28,35)].reset_index(drop=True)
+#HeartRate = Dataset.iloc[:, np.arange(35,42)].reset_index(drop=True)
+
 
 
 dfs = [Area,Amplitude,Risetime,Settlingetime,Arclength,HeartRate,relative_means,means]
@@ -329,27 +336,29 @@ dfs_names = ['AE','AM','RT','ST','ARC','HR','Rel_M','M']
 
 dfs_data_n_names = list(zip(dfs,dfs_names))
 
-#check = []
+check = []
 
 All_comb_res = []
 All_avgs = []
 for N_comb in range (2,len(dfs_data_n_names)+1):
 # Get all combinations of length 2 
-    comb = combinations(dfs_idx, N_comb) 
+    comb = combinations(dfs_data_n_names,N_comb ) 
     A = list(comb)
     
     all_comb = [] 
-    for combinationss in list(comb):
+    for combinationss in A:
+        # ((Dataframe, 'AE'), (Dataframe,AM'))
         df = pd.DataFrame( index = np.arange(0,1012))
         name = ''
-        for idx in combinationss:
-            df = df.join(dfs_data_n_names[idx][0])
-            name = name + ' + ' + dfs_data_n_names[idx][1]
+        for combi in combinationss:
+            # (Dataframe, 'AE')
+#            print('1')
+            df = df.join(combi[0])
+            name = name + ' + ' + combi[1]
             
-            check.append([list(df.columns)[0],name])
+            check.append([list(df.columns),name])
             
-    #        print(idx)
-    #        print(df.join(dfs[idx]))
+
             
         all_comb.append([df,name])
         
@@ -360,7 +369,7 @@ for N_comb in range (2,len(dfs_data_n_names)+1):
         name = combination[1]
         
         X = df
-        y = Dataset['Label']
+        y = Label
         print('\n')
         print('This is test for : ',name)
         results_df = my_svm_model(X,y)
@@ -407,7 +416,7 @@ for df in All_avgs:
 #result_df_export_avg = result_df_export_avg.T
 
 #print(result_df_export_avg[4]) 
-result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg_3.xlsx')
+result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg_without_REL.xlsx')
 
 
 #%%
