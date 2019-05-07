@@ -9,7 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 #for converting .docx file into text-file
-#import docx2txt
+import docx2txt
 #for maniulating strings and iterate over windows folder/files
 import os
 import re
@@ -349,8 +349,8 @@ def extract_signal(path):
     #            print("something")
                 signal_data = pd.read_csv(path + folder_name +'/'+ file.name,header=None, sep='\t')
                  #RENAME COLUMN NAMES and remove excess data.
-                signal_data = signal_data.rename(columns={10:'sound_stimuli', 8: 'skin conductance',11:'Event Markers', 3: 'Heart Rate', 5: 'Pressure1',6:'Pressure2'})
-                signal_data = signal_data.drop(columns = [0,1,2,4,7,9,12]) 
+                signal_data = signal_data.rename(columns={10:'sound_stimuli', 8: 'skin conductance',11:'Event Markers', 3: 'Heart Rate', 5: 'Pressure1',6:'Pressure2',7:'amplification'})
+                signal_data = signal_data.drop(columns = [0,1,2,4,9,12]) 
     #            signal_data.append([folder_name,signal])
                 signal_data_list.append([folder.name,signal_data])
             else:
@@ -383,8 +383,8 @@ def extract_signal2(path):
                     signal_data = pd.read_csv(path + folder_name +'/'+ file.name,header=None, sep='\t')
                     
                     #RENAME COLUMN NAMES and remove excess data.
-                    signal_data = signal_data.rename(columns={10:'sound_stimuli', 8: 'skin conductance',11:'Event Markers', 3: 'Heart Rate', 5: 'Pressure1',6:'Pressure2'})
-                    signal_data = signal_data.drop(columns = [0,1,2,4,7,9,12])          
+                    signal_data = signal_data.rename(columns={10:'sound_stimuli', 8: 'skin conductance',11:'Event Markers', 3: 'Heart Rate', 5: 'Pressure1',6:'Pressure2',7:'amplification'})
+                    signal_data = signal_data.drop(columns = [0,1,2,4,9,12])          
                     
         #            signal_data.append([folder_name,signal])
                     signal_data_list.append([folder.name,signal_data])

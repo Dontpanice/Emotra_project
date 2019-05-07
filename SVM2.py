@@ -1,4 +1,4 @@
-#from my_functions_emotra import get_important_indexses2,my_svm_model,train_hmm,calc_settling_risetime,find_arclen,get_area_and_peak,calc_arclen,get_lin,korrekt_seq,cut_important,get_important_indexses,smooth,plot_individuals_with_sound_reaction,plot_individuals_with_sound,classifier1,classifier,baseline_classifier_median,baseline_classifier_mean,plot_all,separate_skinC,remove_at_indexes,plot_individuals_in_segment,compare_similar_means,cut_segment_of_df,merging,extract_signal,extract_signal2, separate, get_median_and_means, find_index_sound
+from my_functions_emotra import extract_labels,get_important_indexses2,my_svm_model,train_hmm,calc_settling_risetime,find_arclen,get_area_and_peak,calc_arclen,get_lin,korrekt_seq,cut_important,get_important_indexses,smooth,plot_individuals_with_sound_reaction,plot_individuals_with_sound,classifier1,classifier,baseline_classifier_median,baseline_classifier_mean,plot_all,separate_skinC,remove_at_indexes,plot_individuals_in_segment,compare_similar_means,cut_segment_of_df,merging,extract_signal,extract_signal2, separate, get_median_and_means, find_index_sound
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
@@ -21,7 +21,7 @@ from sklearn.metrics import confusion_matrix
 from itertools import combinations
 
 
-import neurokit as nk
+#import neurokit as nk
 
 
 #%%
@@ -29,11 +29,11 @@ import neurokit as nk
 #                             Extract data                              
 # =============================================================================
 # --------------------------------------------  Extract all labels from files, save in "label_data"
-df_labels = extract_labels('./Rapporter_cleaned_2/')
+df_labels = extract_labels('../Rapporter_cleaned_2/')
 # --------------------------------------------- Extract all Highgrade-signaldata from files, save in "signal_data"
-signal_data_list, lost_signal_data_list = extract_signal('./Eudor-a_data_2/')
+signal_data_list, lost_signal_data_list = extract_signal('../Eudor-a_data_2/')
 # --------------------------------------------- Extract all mediumgrade-signaldata from files, save in "signal_data2"   
-signal_data_list2 = extract_signal2('./Eud_data/')
+signal_data_list2 = extract_signal2('../Eud_data/')
 # ------------------------------------------  MERGING LABELS WITH DATA, comparing ID betwen files and merging dataframe with label.
 lost_matches,found_matches = merging(df_labels,signal_data_list)
 lost_matches2,found_matches2 = merging(df_labels,signal_data_list2)
@@ -56,6 +56,12 @@ remove_at_indexes(All_data,remove)
 # =============================================================================
 thrown_out2,check2,remove2 = cut_segment_of_df(All_data,2,9)
 remove_at_indexes(All_data,remove2)
+
+
+
+
+
+
 #%%
 
 with open('D:/Master_thesis_data/Emotra_preprocessed/All_data_ready.pickle', 'rb') as f:
