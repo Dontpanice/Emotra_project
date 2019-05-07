@@ -1,7 +1,10 @@
-from my_functions_remake2 import my_svm_model,train_hmm,calc_settling_risetime,find_arclen,get_area_and_peak,calc_arclen,get_lin,korrekt_seq,cut_important,get_important_indexses,smooth,plot_individuals_with_sound_reaction,plot_individuals_with_sound,classifier1,classifier,baseline_classifier_median,baseline_classifier_mean,plot_all,separate_skinC,remove_at_indexes,plot_individuals_in_segment,compare_similar_means,cut_segment_of_df,merging,extract_signal,extract_signal2, extract_labels, separate, get_median_and_means, find_index_sound
+#from my_functions_emotra import get_important_indexses2,my_svm_model,train_hmm,calc_settling_risetime,find_arclen,get_area_and_peak,calc_arclen,get_lin,korrekt_seq,cut_important,get_important_indexses,smooth,plot_individuals_with_sound_reaction,plot_individuals_with_sound,classifier1,classifier,baseline_classifier_median,baseline_classifier_mean,plot_all,separate_skinC,remove_at_indexes,plot_individuals_in_segment,compare_similar_means,cut_segment_of_df,merging,extract_signal,extract_signal2, separate, get_median_and_means, find_index_sound
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
+
+from my_functions_emotra import get_important_indexses2,my_svm_model,train_hmm,calc_settling_risetime,find_arclen,get_area_and_peak,calc_arclen,get_lin,korrekt_seq,cut_important,get_important_indexses,smooth,plot_individuals_with_sound_reaction,plot_individuals_with_sound,classifier1,classifier,baseline_classifier_median,baseline_classifier_mean,plot_all,separate_skinC,remove_at_indexes,plot_individuals_in_segment,compare_similar_means,cut_segment_of_df,merging,extract_signal,extract_signal2, separate, get_median_and_means, find_index_sound
+
 #import random 
 import pandas as pd
 #import copy
@@ -17,6 +20,8 @@ from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
 from itertools import combinations
 
+
+import neurokit as nk
 
 
 #%%
@@ -56,16 +61,32 @@ remove_at_indexes(All_data,remove2)
 with open('D:/Master_thesis_data/Emotra_preprocessed/All_data_ready.pickle', 'rb') as f:
     All_data = pickle.load(f)
     
-    
+   #%% 
 
 # =============================================================================
 #                           Smooth Dataframe 
 # =============================================================================
 smooth(All_data,50)  
+
+
+
+
+# =============================================================================
+#                       Remove SCL with Moving window technique 
+# =============================================================================
+
+#%%
+
+
+processed_rsp = nk.eda_process(eda, sampling_rate=195, alpha=0.0008, gamma=0.01, filter_type= 'butter' , scr_method='makowski', scr_treshold=0.1)
+
+
+#%%
 # =============================================================================
 #                       Cut Dataframe into 4s segments
 # =============================================================================
 indexes_to_cut = get_important_indexses(All_data)
+indexes_to_cut_big = get_important_indexses2(All_data) 
 all_segments = cut_important(All_data,indexes_to_cut)
 
 # =============================================================================
@@ -149,7 +170,7 @@ for lista in all_segments:
 # =============================================================================
 #                        Get mean and median for each sequence 
 # =============================================================================
-#%%
+
 
 
 H_segmentmeans = [np.log(np.mean(item)) for item in H_sequences]
@@ -176,33 +197,14 @@ plt.show()
 R_means = [np.mean(item)for item in R_segmentmeans]
 H_means = [np.mean(item) for item in H_segmentmeans]
 
-#calculate relative means
-H_mean = np.mean(H_segmentmeans)
-R_mean = np.mean(R_segmentmeans)
-R_relativ_means = [abs(item)/H_mean for item in R_segmentmeans]
-H_relativ_means = [abs(item)/R_mean for item in H_segmentmeans]
+##calculate relative means
+#H_mean = np.mean(H_segmentmeans)
+#R_mean = np.mean(R_segmentmeans)
 
-Groups = [H_relativ_means,R_relativ_means ]
-
-fig, ax = plt.subplots(figsize = (10,10))
-pos = np.array(range(len(Groups))) + 1
-bp = ax.boxplot(Groups, sym='k+', positions=pos,
-                notch=1, bootstrap=5000)
-
-ax.set_xlabel('Boxplots')
-ax.set_ylabel('(area log(values)')
-plt.setp(bp['whiskers'], color='k', linestyle='-')
-plt.setp(bp['fliers'], markersize=3.0)
-plt.title('7segments')
-plt.xticks([1, 2, 3,4,5,6,7], ['Hypo', 'reactive', 'bin2','bin3','bin4', 'bin5', 'bin6'])
-plt.show()
+#R_relativ_means = [abs(item)/H_mean for item in R_segmentmeans]
+#H_relativ_means = [abs(item)/R_mean for item in H_segmentmeans]
 
 
-
-
-
-
-#
 # =============================================================================
 #                        Merge Data together into one dataframe
 # =============================================================================
@@ -285,6 +287,8 @@ for i in range(0,len(R_area)):
 #    print(len(l2))
     data = A_L + P_L + R_L + S_L + ARC_L + HT_L  + l2
     Dataset_R.loc[i] = data                
+    
+    
 #%%
 
 Dataset = pd.DataFrame(columns=['Area','Area2','Area3','Area4','Area5','Area6','Area7','Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7','Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7','Settlingtime','Settlingtime2','Settlingtime3','Settlingtime4','Settlingtime5','Settlingtime6','Settlingtime7','Arclength1','Arclength2','Arclength3','Arclength4','Arclength5','Arclength6','Arclength7','HeartRate','HeartRate2','HeartRate3','HeartRate4','HeartRate5','HeartRate6','HeartRate7','Label'])
@@ -294,12 +298,13 @@ Dataset_H['means'] = [np.mean(item) for item in H_segmentmeans]
 Dataset_R['means'] = [np.mean(item)for item in R_segmentmeans]
 
 # add relative means
-Dataset_R['relative_mean'] = R_relativ_means
-Dataset_H['relative_mean'] = H_relativ_means
+#Dataset_R['relative_mean'] = R_relativ_means
+#Dataset_H['relative_mean'] = H_relativ_means
 
 Dataset = Dataset.append(Dataset_R)
 Dataset = Dataset.append(Dataset_H)
-
+import sklearn.utils
+Dataset = sklearn.utils.shuffle(Dataset)
 #
 
 # =============================================================================
@@ -329,10 +334,10 @@ Label = Dataset['Label']
 
 
 
-dfs = [Area,Amplitude,Risetime,Settlingetime,Arclength,HeartRate,relative_means,means]
-dfs_idx = [0,1,2,3,4,5,6,7]
+dfs = [Area,Amplitude,Risetime,Settlingetime,Arclength,HeartRate,means]
+dfs_idx = [0,1,2,3,4,5,6]
 #dfs_names = ['Area','Amplitude','Risetime','Settlingetime','Arclength']
-dfs_names = ['AE','AM','RT','ST','ARC','HR','Rel_M','M']
+dfs_names = ['AE','AM','RT','ST','ARC','HR','M']
 
 dfs_data_n_names = list(zip(dfs,dfs_names))
 
@@ -340,7 +345,7 @@ check = []
 
 All_comb_res = []
 All_avgs = []
-for N_comb in range (2,len(dfs_data_n_names)+1):
+for N_comb in range (1,len(dfs_data_n_names)+1):
 # Get all combinations of length 2 
     comb = combinations(dfs_data_n_names,N_comb ) 
     A = list(comb)
@@ -400,118 +405,104 @@ for N_comb in range (2,len(dfs_data_n_names)+1):
 result_df_export = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
 for lista in All_comb_res:
     for res in lista: 
-    #    print(res)
         result_df_export= result_df_export.append(res)
 
-result_df_export.to_excel(excel_writer = 'SVM_results/SVM_results_2.xlsx')
-#%%
+result_df_export.to_excel(excel_writer = 'SVM_results/SVM_results_cross.xlsx')
 
 result_df_export_avg = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
 for df in All_avgs:
     result_df_export_avg = result_df_export_avg.append(df)
-#    print(result_df_export_avg.append(df))
+
     
 
-#print(result_df_export_avg) 
-#result_df_export_avg = result_df_export_avg.T
-
-#print(result_df_export_avg[4]) 
-result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg_without_REL.xlsx')
-
-
-#%%
-from sklearn.model_selection import cross_val_score
-
-clf = SVC(kernel='rbf', C=1,gamma='auto')
-scores = cross_val_score(clf, X,y, cv=5)
-
-np.average(scores)                                              
-  
-#%%
+result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg.xlsx')
 
 
 
+#%%             Baseline classifier for 7 segements
+
+# =============================================================================
+#                       PLOT BASELINE
+# =============================================================================
+
+H_segmentmeans_log = [np.log(np.mean(item)) for item in H_sequences]
+R_segmentmeans_log = [np.log(np.mean(item)) for item in R_sequences]
 
 
-fig, ax = plt.subplots()
-ax.hist(Dataset_H['Area'], ls='dashed', alpha = 1, lw=3, color= 'red', label= 'Hypo')
-ax.hist(Dataset_R['Area'],  ls='dotted', alpha = 0.5, lw=3, color= 'green',label='Reactive',bins=70)
-ax.legend()
-plt.ylabel('N')
-plt.xlabel('area ')
-plt.title('Histogram of area')
-plt.show()
+bins = np.arange(np.min(R_segmentmeans_log), np.max(R_segmentmeans_log), 0.4)
 
-fig, ax = plt.subplots()
-ax.hist(Dataset_H['Amplitude'], ls='dashed', alpha = 1, lw=3, color= 'red', label= 'Hypo')
-ax.hist(Dataset_R['Amplitude'],  ls='dotted', alpha = 0.5, lw=3, color= 'green',label='Reactive',bins=70)
-ax.legend()
-plt.ylabel('N')
-plt.xlabel('area ')
-plt.title('Histogram of area')
-plt.show()
-
-
-#%%
-plt.hist(Dataset_R['Area'])
-plt.show()
-#Dataset_R['Area']
-
-plt.hist(Dataset_H['Area'])
-plt.show()
-#Dataset_R['Area']
-#%%
-
-# Visualising the Training set results
-#from matplotlib.colors import ListedColormap
-#X_set, y_set = X_train, y_train
-#X1, X2 = np.meshgrid(np.arange(start = X_set[:, 0].min() - 1, stop = X_set[:, 0].max() + 1, step = 0.01),
-#                     np.arange(start = X_set[:, 1].min() - 1, stop = X_set[:, 1].max() + 1, step = 0.01))
-#plt.contourf(X1, X2, classifier.predict(np.array([X1.ravel(), X2.ravel()]).T).reshape(X1.shape),
-#             alpha = 0.75, cmap = ListedColormap(('red', 'green')))
-#plt.xlim(X1.min(), X1.max())
-#plt.ylim(X2.min(), X2.max())
-#for i, j in enumerate(np.unique(y_set)):
-#    plt.scatter(X_set[y_set == j, 0], X_set[y_set == j, 1],
-#                c = ListedColormap(('red', 'green'))(i), label = j)
-#plt.title('SVM Classifier (Training set border visualization) RBF kernel')
-#plt.xlabel('Area')
-#plt.ylabel('Amplitude length')
-#plt.legend()
-#plt.show()
-
-
-#%%
-
-
-
-
-A = all_segments[:10]
-
-before = []
-after = []
-
-for lista in A:
-    Id = lista[0]
-    DFs = lista[1]
-    for df in DFs:
-#        Id = lista2[0]
-        signal = df['skin conductance']
-        before.append(signal)
-        
-        df_roll = pd.DataFrame(signal)
-        
-        window = 
-        smoothed = df_roll.rolling(window=window).mean().values
-        after.append(smoothed)
-
-#%%
-        
-        
-        
-        
-        
-        
-        
+plt.hist(R_segmentmeans_log, bins =bins,alpha = 1, color = 'green' )
+plt.hist(H_segmentmeans_log, bins =bins,alpha = 0.5,color = 'red' )
+plt.ylabel('Frequency')
+plt.xlabel('Log(µS)')
+plt.title('Frequency of sequences with a specific µS mean')
+plt.show() 
     
+#H_segmentmeans = [np.mean(item) for item in H_sequences]
+#R_segmentmeans = [np.mean(item) for item in R_sequences]
+#
+#plt.hist(R_segmentmeans, bins =50,alpha = 1, color = 'green' )
+#plt.hist(H_segmentmeans, bins =50,alpha = 0.5,color = 'red' )
+#plt.ylabel('Frequency')
+#plt.xlabel('µS)')
+#plt.title('Density Plots of Hypo and Reactive groups')
+#plt.show() 
+#    
+
+#%%
+from sklearn.metrics import accuracy_score, recall_score,f1_score,precision_score
+# ============================================================================
+#                               classify baseline
+# =============================================================================
+limitH = np.mean(H_segmentmeans_log)
+limitR = np.mean(R_segmentmeans_log)
+
+
+means_log = Dataset['means']
+label = Dataset['Label']
+
+classified = [0 if n > limitH else 1 for n in means_log]
+
+print('Mean classifier')
+
+print('Accuracy',accuracy_score(label, classified, normalize=True))
+print('Prec    ', precision_score(label,classified))
+print('Recall  ', recall_score(label, classified))
+print('f1      ',f1_score(label,classified))
+
+limitH = np.median(H_segmentmeans_log)
+limitR = np.median(R_segmentmeans_log)
+
+classified = [0 if n > limitH else 1 for n in means_log]
+
+print('Median classifier')
+
+print('Accuracy',accuracy_score(label, classified, normalize=True))
+print('Prec    ', precision_score(label,classified))
+print('Recall  ', recall_score(label, classified))
+print('f1      ',f1_score(label,classified))
+
+
+#accuracy_score(label, classified, normalize=False)
+
+#%%
+
+
+
+
+
+#
+#X = np.array(list(Dataset[['means']]))
+#X = X.reshape(-1, 1)
+
+X = Dataset[['means']]
+#X = Dataset[['means','Area','Amplitude']]
+
+y = Dataset['Label']
+
+
+A = my_svm_model(X,y)
+
+
+#A1 = list(kf.split(X))[0][0]
 

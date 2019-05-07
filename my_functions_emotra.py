@@ -9,7 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 #for converting .docx file into text-file
-import docx2txt
+#import docx2txt
 #for maniulating strings and iterate over windows folder/files
 import os
 import re
@@ -921,7 +921,53 @@ def get_important_indexses(lista):
                 print('Failed to do something: ' + str(e) + ' - ' + str(ID))
         
         return indexes_to_cut    
-    
+
+
+
+def get_important_indexses2(lista):
+        indexes_to_cut = []
+        for idx,minilista in enumerate(lista):
+            try:
+                df = minilista[1]
+                ID = minilista[0]
+                sound = df["sound_stimuli"]
+                # get index of all 1 of soundstimuli in list
+                indexlist1 = []
+                for idx,soundlabel  in enumerate (sound):
+                #    print(soundlabel)
+                    if soundlabel == 1:
+                #        print("found here ",idx)
+                        indexlist1.append(idx)
+                        continue
+                    else:
+                        continue
+                
+                # Now get appropriate starting poin to cut and appropriate endingpoint to cut
+                idx = 0
+                startindex = []
+                endindex = []
+                while idx < len(indexlist1)-2:
+                    idx += 1
+                #    print(test[idx])
+                    if (indexlist1[idx+1] - indexlist1[idx]) > 3:
+                        #take end of sound iddex -117 steps because of 78 of the first 195 signal stimuli not being relevant
+#                        startindexx = indexlist1[idx]-117 -390
+                        startindexx = indexlist1[idx]-1000
+
+#                        sound_start = indexlist1[idx]-117 -390
+                        startindex.append(startindexx)
+                        #add remaining 4 seconds (780 datapoints) to starting intervall as end indexes.
+#                        endindex.append(startindexx + 780 +390)
+                        endindex.append(startindexx + 780)
+                    else:
+                        continue
+                    
+                indexes = list(zip(startindex,endindex))
+                indexes_to_cut.append(indexes)
+            except BaseException as e:
+                print('Failed to do something: ' + str(e) + ' - ' + str(ID))
+        
+        return indexes_to_cut        
   
 def smooth(data,window):
     for i in range(0,len(data)):
