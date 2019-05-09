@@ -9,7 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 #for converting .docx file into text-file
-import docx2txt
+#import docx2txt
 #for maniulating strings and iterate over windows folder/files
 import os
 import re
@@ -261,39 +261,39 @@ def merging(df_labels,signal_data_list):
     return lost_matches,found_matches
 
 
-
-def extract_labels(path):
-    hypo_list = []
-    re_list = []
-    
-    for file in os.scandir(path):
-        # ex: BARI1(1bb2c6c4-55f0-4628-bea5-abf7ed6c4385)
-        document_text = docx2txt.process(path + file.name)
-        doc_split = document_text.split("\t")
-        Id = re.sub('\.docx', '', file.name)
-        
-        for idx,line in enumerate(doc_split):
-                if 'Test Result:' in line:
-                       activity = doc_split[idx+1].lower()
-                       if 'hypo' in activity:
-                            hypo_list.append([str(Id),1])
-                               
-                       elif 'reactive' in activity:
-                            re_list.append([str(Id),0])
-                       else:
-                            print('didnt find result asnwer ' + Id )
-                            break
-
-                else:
-#                        print('didnt find result: part')
-                        continue
-    #make performance oriented dataframe
-    Columns = ["Id","label" ]
-    label_data = hypo_list + re_list
-    df_labels = pd.DataFrame.from_records(label_data, columns = Columns)
-    df_labels.index = df_labels['Id']  
-    
-    return df_labels
+#
+#def extract_labels(path):
+#    hypo_list = []
+#    re_list = []
+#    
+#    for file in os.scandir(path):
+#        # ex: BARI1(1bb2c6c4-55f0-4628-bea5-abf7ed6c4385)
+#        document_text = docx2txt.process(path + file.name)
+#        doc_split = document_text.split("\t")
+#        Id = re.sub('\.docx', '', file.name)
+#        
+#        for idx,line in enumerate(doc_split):
+#                if 'Test Result:' in line:
+#                       activity = doc_split[idx+1].lower()
+#                       if 'hypo' in activity:
+#                            hypo_list.append([str(Id),1])
+#                               
+#                       elif 'reactive' in activity:
+#                            re_list.append([str(Id),0])
+#                       else:
+#                            print('didnt find result asnwer ' + Id )
+#                            break
+#
+#                else:
+##                        print('didnt find result: part')
+#                        continue
+#    #make performance oriented dataframe
+#    Columns = ["Id","label" ]
+#    label_data = hypo_list + re_list
+#    df_labels = pd.DataFrame.from_records(label_data, columns = Columns)
+#    df_labels.index = df_labels['Id']  
+#    
+#    return df_labels
 
 
 

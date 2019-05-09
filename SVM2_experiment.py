@@ -21,7 +21,7 @@ from sklearn.metrics import confusion_matrix
 from itertools import combinations
 
 
-#import neurokit
+import neurokit
 
 
 #%%
@@ -82,20 +82,16 @@ smooth(All_data,50)
 #%%
 # ta bort smooting i början
 
-processed_signals = []
-counter_1 = 0
-counter_0 = 0 
+with open('Processed_EDA.pickle', 'wb') as f:
+    pickle.dump(processed_signals, f)
 
-for lista in All_data[:20]:
+processed_signals = []
+
+for lista in All_data:
       df = lista[1]
       EDA  = df['skin conductance']
-      label  = df['label'][0]
+#      label  = df['label'][0]
       
-      
-      if label == 1:
-            counter_1 += 1
-      elif label == 0:
-            counter_0 += 1
       
       
       processed_eda = neurokit.eda_process(EDA, sampling_rate=195, alpha=0.0008, gamma=0.01,  scr_method='makowski', scr_treshold=0.1)
@@ -110,6 +106,27 @@ for lista in All_data[:20]:
 #      processed_signals.append(EDA)
 
 
+
+# =============================================================================
+#                       observera processerade signaler
+# =============================================================================
+
+#%%
+tonics = []
+for element in processed_signals:
+      df = element['df']
+      
+      tonic = df['EDA_Tonic']
+      tonics.append(tonic)
+      
+
+
+tonics = tonic[20:]
+
+for serie in tonics:
+      plt.figure()
+      plt.plot(serie)
+      
 
 
 #%%
@@ -189,6 +206,41 @@ indexes_to_cut = get_important_indexses(All_data)
 indexes_to_cut_big = get_important_indexses2(All_data) 
 all_segments = cut_important(All_data,indexes_to_cut)
 
+
+
+
+
+# =============================================================================
+#                       preprocess all segments with Neurokit
+# =============================================================================
+
+#%%
+for lista in all_segments[:2]:
+      minilista = lista[1]
+      for df in minilista:
+            EDA = df['skin conductance']
+            processed_eda = neurokit.eda_process(EDA, sampling_rate=195, alpha=0.0008, gamma=0.01,  scr_method='makowski', scr_treshold=0.1)
+            plt.figure()
+            plt.plot(EDA)
+            plt.show()
+      
+      
+      
+      ##      df = processed_eda['df']
+#            phasic = processed_eda['df']['EDA_Phasic']
+      #      EDA = processed_eda['df']['EDA_Raw']
+      ##      Filtered = processed_eda['df']['EDA_Filtered']
+            tonic = processed_eda['df']['EDA_Tonic']
+            plt.figure()
+            plt.plot(tonic)
+            plt.show()
+
+#            processed_signals.append(processed_eda)   
+#      processed_signals.append(EDA)
+
+
+
+#%%
 # =============================================================================
 #   Correct the sequences  and make all negative values in sequence positive equal to 1e-08
 #               + Get Area and peak for these sequences and (remove areas caused by 1e-08 convertion)
