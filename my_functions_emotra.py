@@ -23,7 +23,7 @@ from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
 from sklearn import datasets
 from sklearn.model_selection import KFold
-from pomegranate import HiddenMarkovModel,NormalDistribution
+#from pomegranate import HiddenMarkovModel,NormalDistribution
 from sklearn import preprocessing
 #from sklearn import datasets
 from sklearn.model_selection import KFold
@@ -952,13 +952,13 @@ def get_important_indexses2(lista):
                     if (indexlist1[idx+1] - indexlist1[idx]) > 3:
                         #take end of sound iddex -117 steps because of 78 of the first 195 signal stimuli not being relevant
 #                        startindexx = indexlist1[idx]-117 -390
-                        startindexx = indexlist1[idx]-1000
+                        startindexx = indexlist1[idx]-117
 
 #                        sound_start = indexlist1[idx]-117 -390
                         startindex.append(startindexx)
                         #add remaining 4 seconds (780 datapoints) to starting intervall as end indexes.
 #                        endindex.append(startindexx + 780 +390)
-                        endindex.append(startindexx + 780)
+                        endindex.append(startindexx + (780*2))
                     else:
                         continue
                     

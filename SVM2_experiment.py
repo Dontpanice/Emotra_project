@@ -21,6 +21,8 @@ from sklearn.metrics import confusion_matrix
 from itertools import combinations
 
 
+#import cPickle as cpickle
+
 import neurokit
 
 
@@ -61,25 +63,29 @@ remove_at_indexes(All_data,remove2)
 #with open('Picled_data.pickle', 'wb') as f:
 #    pickle.dump(All_data, f)
 
+#%% 
 
-
-#%%
-
-with open('../Picled_data.pickle', 'rb') as f:
+# =============================================================================
+# 
+# =============================================================================
+with open('./Picled_data.pickle', 'rb') as f:
     All_data = pickle.load(f)
+#%%
+with open('./Processed_EDA.pickle', 'rb') as f:
+    Processed_EDA = pickle.load(f)
     
    #%% 
 
 # =============================================================================
 #                           Smooth Dataframe 
 # =============================================================================
-smooth(All_data,50)  
+#smooth(All_data,50)  
 
-
+#%%
 # =============================================================================
 #    Remove SCL with Moving window technique  (must happen before segemnting)
 # =============================================================================
-#%%
+
 # ta bort smooting i början
 
 with open('Processed_EDA.pickle', 'wb') as f:
@@ -106,137 +112,158 @@ for lista in All_data:
 #      processed_signals.append(EDA)
 
 
-
-# =============================================================================
-#                       observera processerade signaler
-# =============================================================================
-
 #%%
-tonics = []
-for element in processed_signals:
+# =============================================================================
+#                       merge All data with tonic and phasic values.
+# =============================================================================
+
+for idx,element in enumerate(Processed_EDA):
+     
       df = element['df']
+      EDA_stats = element['EDA']
       
+      #Extract data from algorithm
+      N_amplitudes = len(EDA_stats['SCR_Peaks_Amplitudes'])
+      SCR_Peaks = df['SCR_Peaks']
+      SCR_Recoveries = df['SCR_Recoveries']
+      SCR_Onsets = df['SCR_Onsets']
+      Phasic = df['EDA_Phasic']
       tonic = df['EDA_Tonic']
-      tonics.append(tonic)
+
+      # merge with All_data frame
+      All_df = All_data[idx][1]
+      All_df['Nr_amp'] = N_amplitudes
+      All_df['SCR_Peaks'] = SCR_Peaks.values
+      All_df['SCR_Recoveries'] = SCR_Recoveries.values
+      All_df['SCR_Onsets'] = SCR_Onsets.values
+      All_df['EDA_tonic'] = tonic.values
+      All_df['EDA_Phasic'] = Phasic.values
+
+#%%
+with open('Complete_Emotra_dataset_segmented.pickle', 'wb') as f:
+    pickle.dump(All_data, f)
+
+      #%%
+
+# =============================================================================
+#                 plot a couple of whole sequences 
+# =============================================================================
+
+
+for idx,lista in enumerate(All_data[:10]):
+      df = lista[1]
+      tonic = df['EDA_tonic']
+      phasic = df['EDA_Phasic']
+#      print(phasic)
       
+#      plt.plot('skin conductance')
 
-
-tonics = tonic[20:]
-
-for serie in tonics:
       plt.figure()
-      plt.plot(serie)
+      plt.plot(phasic)
+      plt.plot(tonic)
+      plt.xlabel('Time(195 samples per second) ')
+      plt.ylabel('Skin conductance μS')
+
+      #plt.plot(EDA)
+      #plt.plot(Filtered)
+#      plt.show()
+      plt.savefig('D:/Master_thesis_data/Emotra_preprocessed/Emotra_project/Algorithm_extraction_plot/' + 'plot_' + str(idx) + '.png')
       
 
 
-#%%
-processed_eda = neurokit.eda_process(eda, sampling_rate=195, alpha=0.0008, gamma=0.01,  scr_method='makowski', scr_treshold=0.1)
-
-
-
-#%%
-#df_example = pd.read_csv("bio.csv")
-#
-#EDA_example = df_example['EDA']
-#
-#processed_eda = neurokit.eda_process(EDA_example, sampling_rate=195, alpha=0.0008, gamma=0.01,  scr_method='makowski', scr_treshold=0.1)
-#
-##
-#phasic = processed_eda['df']['EDA_Phasic']
-#EDA = processed_eda['df']['EDA_Raw']
-#Filtered = processed_eda['df']['EDA_Filtered']
-#tonic = processed_eda['df']['EDA_Tonic']
-#
-##tonic = [abs(n) for n in tonic]
-#
-#
-#test = EDA.subtract(tonic)
-#plt.plot(test)
-#plt.plot(tonic)
-#plt.plot(phasic)
-##plt.plot(EDA)
-##plt.plot(Filtered)
-#plt.show()
-
-#%%
-test = tonic.add(phasic)
-plt.plot(EDA_example)
-plt.show()
-
-#%%
-
-df = processed_eda['df']
-phasic = processed_eda['df']['EDA_Phasic']
-EDA = processed_eda['df']['EDA_Raw']
-Filtered = processed_eda['df']['EDA_Filtered']
-tonic = processed_eda['df']['EDA_Tonic']
-
-tonic = [abs(n) for n in tonic]
-
-plt.plot(tonic)
-plt.plot(phasic)
-#plt.plot(EDA)
-#plt.plot(Filtered)
-plt.show()
-
-test = tonic.add(phasic)
-plt.plot(test)
-plt.show()
-
-plt.clf()
-plt.plot(eda)
-plt.show()
-
-
-#%%
-
-#plt.plot(tonic)
-#plt.plot(phasic)
-plt.plot(EDA)
-plt.plot(Filtered)
-plt.show()
-
-#plt.plot()
 
 #%%
 # =============================================================================
 #                       Cut Dataframe into 4s segments
 # =============================================================================
 indexes_to_cut = get_important_indexses(All_data)
-indexes_to_cut_big = get_important_indexses2(All_data) 
 all_segments = cut_important(All_data,indexes_to_cut)
-
-
-
-
-
+#%%
 # =============================================================================
-#                       preprocess all segments with Neurokit
+#                       Cut Dataframe into 8s segments
 # =============================================================================
+indexes_to_cut_big = get_important_indexses2(All_data) 
+all_segments2 = cut_important(All_data,indexes_to_cut_big)
+
 
 #%%
-for lista in all_segments[:2]:
-      minilista = lista[1]
-      for df in minilista:
-            EDA = df['skin conductance']
-            processed_eda = neurokit.eda_process(EDA, sampling_rate=195, alpha=0.0008, gamma=0.01,  scr_method='makowski', scr_treshold=0.1)
-            plt.figure()
-            plt.plot(EDA)
-            plt.show()
-      
-      
-      
-      ##      df = processed_eda['df']
-#            phasic = processed_eda['df']['EDA_Phasic']
-      #      EDA = processed_eda['df']['EDA_Raw']
-      ##      Filtered = processed_eda['df']['EDA_Filtered']
-            tonic = processed_eda['df']['EDA_Tonic']
-            plt.figure()
-            plt.plot(tonic)
-            plt.show()
+# =============================================================================
+#    plot a couple of mini sequences after segmenting with POST-CVXalgorithm
+# =============================================================================
 
-#            processed_signals.append(processed_eda)   
-#      processed_signals.append(EDA)
+
+for idx,lista in enumerate(all_segments2[:50]):
+      minilista = lista[1]
+      for idx2,df in enumerate(minilista):
+            tonic = df['EDA_tonic'].reset_index(drop=True)
+            phasic = df['EDA_Phasic'].reset_index(drop=True)
+      #      print(phasic)
+            
+      #      plt.plot('skin conductance')
+      
+            plt.figure()
+            plt.plot(phasic)
+#            plt.plot(tonic)
+            plt.xlabel('Time(195 samples per second) ')
+            plt.ylabel('Skin conductance μS')
+      
+            #plt.plot(EDA)
+            #plt.plot(Filtered)
+      #      plt.show()
+            plt.savefig('D:/Master_thesis_data/Emotra_preprocessed/Emotra_project/miniplots_afterALG/' + 'plot_' + str(idx) +' - '+ str(idx2) + '.png')
+
+#%%
+
+with open('all_segments_4s.pickle', 'wb') as f:
+    pickle.dump(all_segments, f)
+    
+with open('all_segments_8s.pickle', 'wb') as f:
+    pickle.dump(all_segments2, f)
+#%%
+            
+# =============================================================================
+#    plot a couple of mini sequences after segmenting with PRE-CVXalgorithm
+# =============================================================================
+            
+for idx,lista in enumerate(all_segments2[:50]):
+      minilista = lista[1]
+      for idx2,df in enumerate(minilista):
+            SC = df['skin conductance'].reset_index(drop=True)
+
+
+            plt.figure()
+            plt.plot(SC)
+
+            plt.xlabel('Time(195 samples per second) ')
+            plt.ylabel('Skin conductance μS')
+      
+            #plt.plot(EDA)
+            #plt.plot(Filtered)
+      #      plt.show()
+            plt.savefig('D:/Master_thesis_data/Emotra_preprocessed/Emotra_project/miniplots_beforeALG/' + 'plot_' + str(idx) +' - '+ str(idx2) + '.png')
+#%%
+#for lista in all_segments[:2]:
+#      minilista = lista[1]
+#      for df in minilista:
+#            EDA = df['skin conductance']
+#            processed_eda = neurokit.eda_process(EDA, sampling_rate=195, alpha=0.0008, gamma=0.01,  scr_method='makowski', scr_treshold=0.1)
+#            plt.figure()
+#            plt.plot(EDA)
+#            plt.show()
+#      
+#      
+#      
+#      ##      df = processed_eda['df']
+##            phasic = processed_eda['df']['EDA_Phasic']
+#      #      EDA = processed_eda['df']['EDA_Raw']
+#      ##      Filtered = processed_eda['df']['EDA_Filtered']
+#            tonic = processed_eda['df']['EDA_Tonic']
+#            plt.figure()
+#            plt.plot(tonic)
+#            plt.show()
+#
+##            processed_signals.append(processed_eda)   
+##      processed_signals.append(EDA)
 
 
 
