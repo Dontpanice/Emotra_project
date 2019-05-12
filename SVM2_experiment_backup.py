@@ -526,48 +526,77 @@ dfs_idx = [0,1,2,3,4,5,6,7]
 dfs_names = ['AE','AM','RT','ST','ARC','HR','M','N.amp']
 dfs_data_n_names = list(zip(dfs,dfs_names))
 
+
+
+
+
+
+#%%
+
+# Get all combinations of dataframes and corresponding names. 
+
+all_comb = []
+for i in range (1,len(dfs_data_n_names)+1):
+# Get all combinations of length 2 
+    comb = list(combinations(dfs_data_n_names,i))
+    all_comb.append(comb)
+
+
+
 check = []
 All_comb_res = []
 All_avgs = []
 
-
-
-
-
-
-for i in range (1,len(dfs_data_n_names)+1):
-# Get all combinations of length 2 
-    comb = combinations(dfs_data_n_names,i ) 
-    A = list(comb)
     
-    all_comb = [] 
-    for combinationss in A:
-        # ((Dataframe, 'AE'), (Dataframe,AM'))
+#A2 = []
+DF_sets = []       
+for combinationss in all_comb:
+    for combi in combinationss:
+        
         df = pd.DataFrame( index = np.arange(0,1012))
         name = ''
-        for combi in combinationss:
-            # (Dataframe, 'AE')
-#            print('1')
-            df = df.join(combi[0])
-            name = name + ' + ' + combi[1]
-            
-            check.append([list(df.columns),name])
-            
-
-            
-        all_comb.append([df,name])
+        set_of_comb=[]
         
-    All_res = []
+        for pair in combi:
+#            print(pair)
+#           A2.append(pair[0])
+           
+           df = df.join(pair[0])
+           name = name + ' + ' + pair[1]
+            
+        DF_sets.append([df,name])
+#        print(combi[0][0])
+#    
+#%%   
+
+
+gammas = [0.1, 1, 10, 100]
+cs = [0.1, 1, 10, 100, 1000]
+
+parameter_combinations = list(combinations(gammas + cs,2))
+
+Snippet_results = []        
+#Run for each patameter setting 
+for combination in parameter_combinations:
+    C = combination[0]
+    gamma = combination[1]    
+# =============================================================================
+#            Calculate results for each feature in set. 
+# =============================================================================
+    All_res = []        
     Avg_res_df = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
-    for idx,combination in enumerate(all_comb):
-        df = combination[0]
-        name = combination[1]
+    for idx,set_ in enumerate(DF_sets):
+        df = set_[0]
+        name = set_[1]
         
         X = df
         y = Label
         print('\n')
         print('This is test for : ',name)
-        results_df = my_svm_model(X,y)
+        
+
+         
+        results_df = my_svm_model(X,y,gamma=gamma,C=C)
         results_df['Combination'] = [name]*5
         All_res.append( results_df)
         
@@ -587,26 +616,49 @@ for i in range (1,len(dfs_data_n_names)+1):
     All_avgs.append(Avg_res_df)
         
     
-    
+ 
+
+ 
 # ============================================================================
 #                       Save results in xlsx format
 # =============================================================================
     
-result_df_export = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
-for lista in All_comb_res:
-    for res in lista: 
-        result_df_export= result_df_export.append(res)
+    result_df_export = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
+    for lista in All_comb_res:
+        for res in lista: 
+            result_df_export= result_df_export.append(res)
+    
+    result_df_export.to_excel(excel_writer = 'SVM_results/SVM_results_cross.xlsx')
+    
+    result_df_export_avg = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
+    for df in All_avgs:
+        result_df_export_avg = result_df_export_avg.append(df)
+    
+        
+    
+    result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg'  + str(gamma) + 'Gam-C' + str(C)  +'.xlsx')
 
-result_df_export.to_excel(excel_writer = 'SVM_results/SVM_results_cross.xlsx')
 
-result_df_export_avg = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
-for df in All_avgs:
-    result_df_export_avg = result_df_export_avg.append(df)
-
+    #save snippet for each parameter combination.
+#    snippets = []
+    snippet = result_df_export_avg.sort_values(by=['F1'], ascending=False)[:10]
+    Snippet_results.append([str(gamma) + ' - ' + str(C) , snippet])
     
 
-result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg.xlsx')
+#%%
 
+results_f1 = []
+results_recall= []
+for lista in Snippet_results:
+    maxf1 = np.max(lista[1]['F1'])
+    maxrecall = np.max(lista[1]['recall'])
+    results_f1.append(maxf1)
+    results_recall.append(maxrecall)
+    
+
+#plt.plot(results_f1)
+plt.plot(results_recall)
+plt.show()
 
 
 #%%             Baseline classifier for 7 segements

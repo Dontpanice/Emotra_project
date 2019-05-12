@@ -31,7 +31,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
 
-def my_svm_model(X,y):
+def my_svm_model(X,y,gamma,C):
     
     results_df = pd.DataFrame(columns=['accuracy','precision','recall','F1'])
     results = []
@@ -56,7 +56,7 @@ def my_svm_model(X,y):
         # Fitting classifier to the Training set
     
         
-        classifier = SVC(kernel ='rbf', random_state = 0)
+        classifier = SVC(kernel ='rbf', random_state = 0,gamma=gamma,C=C)
         classifier.fit(X_train,y_train) 
         
         # Predicting the Test set results

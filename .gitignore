@@ -113,3 +113,10 @@ dmypy.json
 # Pyre type checker
 .pyre/
 *.pickle
+
+#Ifnore folder named ''Miniplots"
+Algorithm_extraction_plot/
+miniplots_afterALG_4sseg/
+miniplots_afterALG_8sseg/
+miniplots_beforeALG_4sseg/
+miniplots_beforeALG_8sseg/
