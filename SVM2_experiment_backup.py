@@ -570,12 +570,127 @@ for combinationss in all_comb:
 #%%   
 
 
+
+# =============================================================================
+#                  Check which features give the best score 
+# =============================================================================
+
+All_comb_res = []
+All_avgs = []
+All_res = []        
+Avg_res_df = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
+for idx,set_ in enumerate(DF_sets):
+    df = set_[0]
+    name = set_[1]
+    
+    X = df
+    y = Label
+    print('\n')
+    print('This is test for : ',name)
+    
+
+     
+    results_df = my_svm_model(X,y, gamma ='auto_deprecated' , C =1.0)
+    results_df['Combination'] = [name]*5
+    All_res.append( results_df)
+    
+    
+    #calculate avg results from cross validation
+    
+    accuracy = np.mean(results_df['accuracy'])
+    presicion = np.mean(results_df['precision'])
+    recall = np.mean(results_df['recall'])
+    F1 = np.mean(results_df['F1'])
+    
+    Avg_res_df.loc[idx] = [accuracy,presicion,recall,F1,name]
+    
+    
+
+All_comb_res.append(All_res)
+All_avgs.append(Avg_res_df)
+        
+    
+ 
+# ============================================================================
+#                       Save results in xlsx format
+# =============================================================================
+    
+result_df_export = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
+for lista in All_comb_res:
+    for res in lista: 
+        result_df_export= result_df_export.append(res)
+
+result_df_export.to_excel(excel_writer = 'SVM_results/SVM_results_cross.xlsx')
+
+result_df_export_avg = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
+for df in All_avgs:
+    result_df_export_avg = result_df_export_avg.append(df)
+
+    
+
+result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg.xlsx')
+
+#%%
+#snippet = result_df_export_avg.sort_values(by=['recall'], ascending=False)[:10]
+#
+#A = snippet['Combination'].tolist()
+#
+#A = [n.replace('+','') for n in A]
+#
+#A = [n.split() for n in A]
+
+# =============================================================================
+#                      optimize for  best recall score features
+# =============================================================================
+
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import train_test_split
+
+X = Area.join(N_amp).join(Settlingetime)
+Y = Label
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size = 0.20, random_state = 0)
+
+#gammas = [0.1, 1, 10, 100]
+#cs = [0.1, 1, 10, 100, 1000]
+#
+#parameter_combinations = list(combinations(gammas + cs,2))
+#
+#for combination in parameter_combinations:
+#    C = combination[0]
+#    gamma = combination[1]    
+#
+#
+#    results_df = my_svm_model(X,y,gamma=gamma,C=C)
+#    
+    
+    
+    
+param_grid = {'C':[1,10,100,1000],'gamma':[1,0.1,0.001,0.0001], 'kernel':['linear','rbf']}
+
+#classifier = SVC()
+
+grid = GridSearchCV(SVC() ,param_grid,refit = True, verbose=2)
+
+grid.fit(X_train,y_train)
+
+
+#%%
+# =============================================================================
+#                   Parameter optimization for following features:
+# =============================================================================
+
 gammas = [0.1, 1, 10, 100]
 cs = [0.1, 1, 10, 100, 1000]
 
 parameter_combinations = list(combinations(gammas + cs,2))
 
-Snippet_results = []        
+Snippet_results = []   
+
+optimization_precision = []
+optimization_recall = []
+optimization_F1 = []
 #Run for each patameter setting 
 for combination in parameter_combinations:
     C = combination[0]
@@ -641,8 +756,33 @@ for combination in parameter_combinations:
 
     #save snippet for each parameter combination.
 #    snippets = []
-    snippet = result_df_export_avg.sort_values(by=['F1'], ascending=False)[:10]
-    Snippet_results.append([str(gamma) + ' - ' + str(C) , snippet])
+    snippet = result_df_export_avg.sort_values(by=['recall'], ascending=False)[:10]
+    
+    reacall = np.max(snippet['recall'])
+    F1 = np.max(snippet['F1'])
+    precision = np.max(snippet['precision'])
+    
+    
+    Snippet_results.append([(gamma,C) , snippet])
+    
+    #get highest recall from 
+
+    
+    optimization_recall.append([(gamma,C) , reacall])
+    optimization_precision.append([(gamma,C) , precision])
+    optimization_F1.append([(gamma,C) , F1])
+
+
+
+
+
+
+#%%
+# =============================================================================
+#                        Kmeans  on raw segmented data. 
+# =============================================================================
+    
+    
     
 
 #%%
