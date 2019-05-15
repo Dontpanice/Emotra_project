@@ -10,7 +10,7 @@ import pandas as pd
 #import copy
 #import time
 
-#from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
 #from sklearn import datasets
 from sklearn.model_selection import KFold
@@ -18,7 +18,7 @@ from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
-from itertools import combinations
+
 
 
 #import cPickle as cpickle
@@ -500,6 +500,14 @@ Dataset = sklearn.utils.shuffle(Dataset)
 #   Change here to consider different features in dataset before feeding SVM
 # =============================================================================
 
+#%%
+# =============================================================================
+#1. Load Dataset / get all combinations of features 
+# =============================================================================
+
+with open('./Dataset.pickle', 'rb') as f:
+    Dataset = pickle.load(f)
+
 Area = Dataset[['Area','Area2','Area3','Area4','Area5','Area6','Area7']].reset_index(drop=True)
 Amplitude = Dataset[['Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7']].reset_index(drop=True)
 Risetime = Dataset[['Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7']].reset_index(drop=True)
@@ -511,14 +519,6 @@ means = Dataset['means'].reset_index(drop=True)
 N_amp = Dataset['N_amp'].reset_index(drop=True)
 Label = Dataset['Label'].reset_index(drop=True)
 
-#Area = Dataset.iloc[:, np.arange(0,7)].reset_index(drop=True)
-#Amplitude = Dataset.iloc[:, np.arange(7,14)].reset_index(drop=True)
-#Risetime = Dataset.iloc[:, np.arange(14,21)].reset_index(drop=True)
-#Settlingetime = Dataset.iloc[:, np.arange(21,28)].reset_index(drop=True)
-#Arclength = Dataset.iloc[:, np.arange(28,35)].reset_index(drop=True)
-#HeartRate = Dataset.iloc[:, np.arange(35,42)].reset_index(drop=True)
-
-
 
 dfs = [Area,Amplitude,Risetime,Settlingetime,Arclength,HeartRate,means,N_amp]
 dfs_idx = [0,1,2,3,4,5,6,7]
@@ -527,12 +527,7 @@ dfs_names = ['AE','AM','RT','ST','ARC','HR','M','N.amp']
 dfs_data_n_names = list(zip(dfs,dfs_names))
 
 
-
-
-
-
-#%%
-
+from itertools import combinations
 # Get all combinations of dataframes and corresponding names. 
 
 all_comb = []
@@ -541,14 +536,9 @@ for i in range (1,len(dfs_data_n_names)+1):
     comb = list(combinations(dfs_data_n_names,i))
     all_comb.append(comb)
 
-
-
 check = []
 All_comb_res = []
 All_avgs = []
-
-    
-#A2 = []
 DF_sets = []       
 for combinationss in all_comb:
     for combi in combinationss:
@@ -558,28 +548,38 @@ for combinationss in all_comb:
         set_of_comb=[]
         
         for pair in combi:
-#            print(pair)
-#           A2.append(pair[0])
-           
            df = df.join(pair[0])
            name = name + ' + ' + pair[1]
             
         DF_sets.append([df,name])
-#        print(combi[0][0])
-#    
-#%%   
 
-
-
+ 
+#%%
 # =============================================================================
-#                  Check which features give the best score 
+#                   Parameter optimization for following all features:
 # =============================================================================
+#
 
-All_comb_res = []
-All_avgs = []
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import recall_score  
+from sklearn.metrics import precision_score
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+import sklearn.metrics
+# =============================================================================
+#            Calculate results for each feature in set. 
+# =============================================================================
 All_res = []        
-Avg_res_df = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
+
+param_grid = {'C':[1,10,100,1000],'gamma':[1,0.1,0.001,0.0001], 'kernel':['rbf']}
+#initiate dataframe for results values.
+
+#[rec, f1, acc, pre,best_parameters, rec2, name]
+Avg_res_df = pd.DataFrame(columns=['recall','f1','precision','accuracy','parameters','recall2','name'])  
+
 for idx,set_ in enumerate(DF_sets):
+    
     df = set_[0]
     name = set_[1]
     
@@ -588,29 +588,39 @@ for idx,set_ in enumerate(DF_sets):
     print('\n')
     print('This is test for : ',name)
     
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 0)
 
+    sc = StandardScaler()
+    X_train = sc.fit_transform(X_train)
+    X_test = sc.transform(X_test)
+    
+    # set to cv=5 and n_jobs=4 
+    grid = GridSearchCV(SVC() ,param_grid,refit = True, verbose=2, scoring = 'f1')
+    
+    grid.fit(X_train,y_train)
+    
+    print("The best parameters are %s with a recall score of %0.2f"
+          % (grid.best_params_, grid.best_score_))
      
-    results_df = my_svm_model(X,y, gamma ='auto_deprecated' , C =1.0)
-    results_df['Combination'] = [name]*5
-    All_res.append( results_df)
     
+    y_pred = grid.predict(X_test)
     
-    #calculate avg results from cross validation
+    rec2 = grid.best_score_
+    best_parameters = grid.best_params_
+    rec = recall_score(y_pred,y_test)
+    f1 = f1_score(y_pred,y_test)
+    acc = accuracy_score(y_pred,y_test)
+    pre = precision_score(y_pred,y_test)
+    results = [rec, f1, acc, pre,best_parameters, rec2, name]
     
-    accuracy = np.mean(results_df['accuracy'])
-    presicion = np.mean(results_df['precision'])
-    recall = np.mean(results_df['recall'])
-    F1 = np.mean(results_df['F1'])
-    
-    Avg_res_df.loc[idx] = [accuracy,presicion,recall,F1,name]
+
+    Avg_res_df.loc[idx] = [rec, f1, acc, pre,best_parameters, rec2, name]
     
     
 
 All_comb_res.append(All_res)
 All_avgs.append(Avg_res_df)
-        
-    
- 
+#%%        
 # ============================================================================
 #                       Save results in xlsx format
 # =============================================================================
@@ -629,272 +639,395 @@ for df in All_avgs:
     
 
 result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg.xlsx')
-
-#%%
-
-#with open('Dataset.pickle', 'wb') as f:
-#    pickle.dump(Dataset, f)
-    
-with open('./Dataset.pickle', 'rb') as f:
-    Dataset2 = pickle.load(f)
-
-
-
-Area = Dataset[['Area','Area2','Area3','Area4','Area5','Area6','Area7']].reset_index(drop=True)
-Amplitude = Dataset[['Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7']].reset_index(drop=True)
-Risetime = Dataset[['Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7']].reset_index(drop=True)
-Settlingetime = Dataset[['Settlingtime','Settlingtime2','Settlingtime3','Settlingtime4','Settlingtime5','Settlingtime6','Settlingtime7']].reset_index(drop=True)
-Arclength = Dataset[['Arclength1','Arclength2','Arclength3','Arclength4','Arclength5','Arclength6','Arclength7']].reset_index(drop=True)
-HeartRate = Dataset[['HeartRate','HeartRate2','HeartRate3','HeartRate4','HeartRate5','HeartRate6','HeartRate7']].reset_index(drop=True)
-#relative_means = Dataset['relative_mean'].reset_index(drop=True)
-means = Dataset['means'].reset_index(drop=True)
-N_amp = Dataset['N_amp'].reset_index(drop=True)
-Label = Dataset['Label'].reset_index(drop=True)
-
-
-
-
-# =============================================================================
-#                      optimize for  best recall score features
-# =============================================================================
-
-
-
-
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-
-X = Area.join(N_amp).join(Settlingetime)
-Y = Label
-
-
-X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size = 0.20, random_state = 0)
-
-      
-    
-param_grid = {'C':[1,10,100,1000],'gamma':[1,0.1,0.001,0.0001], 'kernel':('rbf','linear')}
-
-#classifier = SVC()
-
-grid = GridSearchCV(SVC() ,param_grid,refit = True, verbose=2, scoring = 'recall', cv=5,n_jobs=5)
-
-grid.fit(X_train,y_train)
-
-
-bestclassifier = grid.best_estimator_
-
-y_pred = bestclassifier.predict(X_test)
-
-from sklearn.metrics import recall_score
-
-recall_score(y_test, y_pred)
-
-
-
-
-#%%
-# =============================================================================
-#                   Parameter optimization for following features:
-# =============================================================================
-
-gammas = [0.1, 1, 10, 100]
-cs = [0.1, 1, 10, 100, 1000]
-
-parameter_combinations = list(combinations(gammas + cs,2))
-
-Snippet_results = []   
-
-optimization_precision = []
-optimization_recall = []
-optimization_F1 = []
-#Run for each patameter setting 
-for combination in parameter_combinations:
-    C = combination[0]
-    gamma = combination[1]    
-# =============================================================================
-#            Calculate results for each feature in set. 
-# =============================================================================
-    All_res = []        
-    Avg_res_df = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
-    for idx,set_ in enumerate(DF_sets):
-        df = set_[0]
-        name = set_[1]
-        
-        X = df
-        y = Label
-        print('\n')
-        print('This is test for : ',name)
-        
-
-         
-        results_df = my_svm_model(X,y,gamma=gamma,C=C)
-        results_df['Combination'] = [name]*5
-        All_res.append( results_df)
-        
-        
-        #calculate avg results from cross validation
-        
-        accuracy = np.mean(results_df['accuracy'])
-        presicion = np.mean(results_df['precision'])
-        recall = np.mean(results_df['recall'])
-        F1 = np.mean(results_df['F1'])
-        
-        Avg_res_df.loc[idx] = [accuracy,presicion,recall,F1,name]
-        
-        
-    
-    All_comb_res.append(All_res)
-    All_avgs.append(Avg_res_df)
-        
-    
- 
-
- 
-# ============================================================================
-#                       Save results in xlsx format
-# =============================================================================
-    
-    result_df_export = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
-    for lista in All_comb_res:
-        for res in lista: 
-            result_df_export= result_df_export.append(res)
-    
-    result_df_export.to_excel(excel_writer = 'SVM_results/SVM_results_cross.xlsx')
-    
-    result_df_export_avg = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
-    for df in All_avgs:
-        result_df_export_avg = result_df_export_avg.append(df)
-    
-        
-    
-    result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg'  + str(gamma) + 'Gam-C' + str(C)  +'.xlsx')
-
-
-    #save snippet for each parameter combination.
-#    snippets = []
-    snippet = result_df_export_avg.sort_values(by=['recall'], ascending=False)[:10]
-    
-    reacall = np.max(snippet['recall'])
-    F1 = np.max(snippet['F1'])
-    precision = np.max(snippet['precision'])
-    
-    
-    Snippet_results.append([(gamma,C) , snippet])
-    
-    #get highest recall from 
-
-    
-    optimization_recall.append([(gamma,C) , reacall])
-    optimization_precision.append([(gamma,C) , precision])
-    optimization_F1.append([(gamma,C) , F1])
-
-#%%
-# =============================================================================
-#                   Parameter optimization for following features:
-# =============================================================================
-
-gammas = [0.1, 1, 10, 100]
-cs = [0.1, 1, 10, 100, 1000]
-
-parameter_combinations = list(combinations(gammas + cs,2))
-
-Snippet_results = []   
-
-optimization_precision = []
-optimization_recall = []
-optimization_F1 = []
-#Run for each patameter setting 
-for combination in parameter_combinations:
-    C = combination[0]
-    gamma = combination[1]    
-# =============================================================================
-#            Calculate results for each feature in set. 
-# =============================================================================
-    All_res = []        
-    Avg_res_df = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
-    for idx,set_ in enumerate(DF_sets):
-        df = set_[0]
-        name = set_[1]
-        
-        X = df
-        y = Label
-        print('\n')
-        print('This is test for : ',name)
-        
-
-         
-        results_df = my_svm_model(X,y,gamma=gamma,C=C)
-        results_df['Combination'] = [name]*5
-        All_res.append( results_df)
-        
-        
-        #calculate avg results from cross validation
-        
-        accuracy = np.mean(results_df['accuracy'])
-        presicion = np.mean(results_df['precision'])
-        recall = np.mean(results_df['recall'])
-        F1 = np.mean(results_df['F1'])
-        
-        Avg_res_df.loc[idx] = [accuracy,presicion,recall,F1,name]
-        
-        
-    
-    All_comb_res.append(All_res)
-    All_avgs.append(Avg_res_df)
-        
-    
- 
-
- 
-# ============================================================================
-#                       Save results in xlsx format
-# =============================================================================
-    
-    result_df_export = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
-    for lista in All_comb_res:
-        for res in lista: 
-            result_df_export= result_df_export.append(res)
-    
-    result_df_export.to_excel(excel_writer = 'SVM_results/SVM_results_cross.xlsx')
-    
-    result_df_export_avg = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
-    for df in All_avgs:
-        result_df_export_avg = result_df_export_avg.append(df)
-    
-        
-    
-    result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg'  + str(gamma) + 'Gam-C' + str(C)  +'.xlsx')
-
-
-    #save snippet for each parameter combination.
-#    snippets = []
-    snippet = result_df_export_avg.sort_values(by=['recall'], ascending=False)[:10]
-    
-    reacall = np.max(snippet['recall'])
-    F1 = np.max(snippet['F1'])
-    precision = np.max(snippet['precision'])
-    
-    
-    Snippet_results.append([(gamma,C) , snippet])
-    
-    #get highest recall from 
-
-    
-    optimization_recall.append([(gamma,C) , reacall])
-    optimization_precision.append([(gamma,C) , precision])
-    optimization_F1.append([(gamma,C) , F1])
-
-
-
-
-
-
 #%%
 # =============================================================================
 #                        Kmeans  on raw segmented data. 
 # =============================================================================
+ 
+#%%
+import numpy
+import matplotlib.pyplot as plt
+from tslearn.clustering import TimeSeriesKMeans
+from tslearn.datasets import CachedDatasets
+from tslearn.preprocessing import TimeSeriesScalerMeanVariance, TimeSeriesResampler
+
+seed = 0
+numpy.random.seed(seed)
+
+
+
+#%%
+
+# =============================================================================
+#                   Extract sequences for clustering
+# =============================================================================
+H_seqs = []
+R_seqs = []
+
+for lista in All_data:
+    label = lista[1]['label'].iloc[0]
+    EDA = lista[1]['skin conductance']
+    if label == 0:
+        R_seqs.append(EDA)
+    elif label == 1:
+        H_seqs.append(EDA)
+        
+        
+        
+#%%
+        
+        
+# =============================================================================
+#              project difference between clusters?
+# =============================================================================
+#assign id to each individual
+for idx,lista in enumerate(All_data):
+    lista.append(idx)
+
+A_seqs = []
+for lista in All_data:
+    ID = lista[2]
+    EDA = lista[1]['skin conductance']
+    A_seqs.append([ID,EDA])
+
+A_seqs_noid = [n[1] for n in A_seqs]
+
+#cut into same shapes
+A_seqs_noid = [n[:63398] for n in A_seqs_noid ]
+        
+A_seqs_noid = np.array(A_seqs_noid)
+
+
+Xtrain = A_seqs_noid
+#length of sequence, 63398/195hz = 325 ponts per secons resample to that sieze
+X_train = TimeSeriesScalerMeanVariance().fit_transform(X_train)  # Keep only 50 time series
+X_train = TimeSeriesResampler(sz=325).fit_transform(X_train)  # Make time series shorter
+sz = X_train.shape[1]
+
+# Euclidean k-means
+print("Euclidean k-means")
+km = TimeSeriesKMeans(n_clusters=9, verbose=True, random_state=seed)
+y_pred = km.fit_predict(X_train)
+
+plt.figure()
+for yi in range(9):
+    plt.subplot(3, 3, yi + 1)
+    for xx in X_train[y_pred == yi]:
+        plt.plot(xx.ravel(), "k-", alpha=.2)
+    plt.plot(km.cluster_centers_[yi].ravel(), "r-")
+    plt.xlim(0, sz)
+    plt.ylim(-4, 4)
+    if yi == 1:
+        plt.title("Euclidean $k$-means")
+
+
+
+# get position from number cluster postion belonging to 1
+id_list1 =  [idx for idx,n in enumerate(y_pred) if n == 1]
+id_list6 =  [idx for idx,n in enumerate(y_pred) if n == 6]
+
+cluster1 = []
+for ID in id_list1:
+    cluster1.append(All_data[ID])
+    
+cluster6 = []
+for ID in id_list6:
+    cluster6.append(All_data[ID])
+    
+    
+    
+#
+
+    
+
+#%%
+# =============================================================================
+#               cut and make sequences into correct chapr for Kmeans
+# =============================================================================      
+        
+lengths = [len(n) for n in H_seqs]
+lens = np.min(lengths) #63398
+
+#cut into same shapes
+H_seqs = [n[:63398] for n in H_seqs ]
+
+    
+lengths = [len(n) for n in R_seqs]
+lens = np.min(lengths) #63398
+
+#cut into same shapes
+R_seqs = [n[:63398] for n in R_seqs ]
+
+
+A_seqs = R_seqs + H_seqs
+
+R_seqs = np.array(R_seqs)
+H_seqs = np.array(H_seqs)
+A_seqs = np.array(A_seqs)
+
+
+
+#%%
+#X = R_seqs
+#Y = np.array([1]*749).reshape(749,1)
+
+X = R_seqs
+Xtrain = X
+#Y = np.array([1]*749).reshape(749,1)
+
+#X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size = 0.20, random_state = 0)
+
+
+
+#length of sequence, 63398/195hz = 325 ponts per secons resample to that sieze
+
+X_train = TimeSeriesScalerMeanVariance().fit_transform(X_train)  # Keep only 50 time series
+X_train = TimeSeriesResampler(sz=325).fit_transform(X_train)  # Make time series shorter
+sz = X_train.shape[1]
+
+# Euclidean k-means
+print("Euclidean k-means")
+km = TimeSeriesKMeans(n_clusters=9, verbose=True, random_state=seed)
+y_pred = km.fit_predict(X_train)
+
+plt.figure()
+for yi in range(9):
+    plt.subplot(3, 3, yi + 1)
+    for xx in X_train[y_pred == yi]:
+        plt.plot(xx.ravel(), "k-", alpha=.2)
+    plt.plot(km.cluster_centers_[yi].ravel(), "r-")
+    plt.xlim(0, sz)
+    plt.ylim(-4, 4)
+    if yi == 1:
+        plt.title("Euclidean $k$-means")
+
+
+
+
+
+
+#%%        
+# DBA-k-means
+print("DBA k-means")
+dba_km = TimeSeriesKMeans(n_clusters=3, n_init=2, metric="dtw", verbose=True, max_iter_barycenter=10, random_state=seed)
+y_pred = dba_km.fit_predict(X_train)
+
+for yi in range(3):
+    plt.subplot(3, 3, 4 + yi)
+    for xx in X_train[y_pred == yi]:
+        plt.plot(xx.ravel(), "k-", alpha=.2)
+    plt.plot(dba_km.cluster_centers_[yi].ravel(), "r-")
+    plt.xlim(0, sz)
+    plt.ylim(-4, 4)
+    if yi == 1:
+        plt.title("DBA $k$-means")
+
+# Soft-DTW-k-means
+print("Soft-DTW k-means")
+sdtw_km = TimeSeriesKMeans(n_clusters=3, metric="softdtw", metric_params={"gamma_sdtw": .01},
+                           verbose=True, random_state=seed)
+y_pred = sdtw_km.fit_predict(X_train)
+
+for yi in range(3):
+    plt.subplot(3, 3, 7 + yi)
+    for xx in X_train[y_pred == yi]:
+        plt.plot(xx.ravel(), "k-", alpha=.2)
+    plt.plot(sdtw_km.cluster_centers_[yi].ravel(), "r-")
+    plt.xlim(0, sz)
+    plt.ylim(-4, 4)
+    if yi == 1:
+        plt.title("Soft-DTW $k$-means")
+
+plt.tight_layout()
+plt.show()
+
+#%%
+
+# =============================================================================
+#                   concatinate all segemnts and perform clustering
+# =============================================================================
+R = []
+H = []
+A = []
+for lista in all_segments:
+    df= lista[1]
+    label = df[1]['label'].iloc[0]
+    
+#    concated = [n['skin conductance'].tolist() for n in df]
+#    concated = sum(concated,[])
+#    A.append(np.array(concated))    
+    
+    
+    if label == 0:
+        
+        concated = [n['skin conductance'].tolist() for n in df]
+        concated = sum(concated,[])
+        R.append(np.array(concated))
+    elif label == 1:
+        concated = [n['skin conductance'].tolist() for n in df]
+        concated = sum(concated,[])
+        H.append(np.array(concated))
+
+
+#R = np.array(R).reshape(263,1)
+del H[250]
+A = H + R
+A = np.array(A)
+H = np.array(H)
+R = np.array(R)
+
+
+#%%
+#perform clustering
+#data for hypo
+#X = H
+#Y = np.array([1]*262).reshape(262,1)
+
+
+#data for Reactive
+#X = R
+#Y = np.array([0]*749).reshape(749,1)
+
+# data for all concatinated
+X = A
+Y = np.array([0]*1011).reshape(1011,1)
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size = 0.20, random_state = 0)
+
+
+
+
+X_train = TimeSeriesScalerMeanVariance().fit_transform(X_train)  # Keep only 50 time series
+X_train = TimeSeriesResampler(sz=325).fit_transform(X_train)  # Make time series shorter
+sz = X_train.shape[1]
+
+# Euclidean k-means
+print("Euclidean k-means")
+km = TimeSeriesKMeans(n_clusters=6, verbose=True, random_state=seed)
+y_pred = km.fit_predict(X_train)
+
+plt.figure()
+for yi in range(6):
+    plt.subplot(3, 3, yi + 1)
+    for xx in X_train[y_pred == yi]:
+        plt.plot(xx.ravel(), "k-", alpha=.2)
+    plt.plot(km.cluster_centers_[yi].ravel(), "r-")
+    plt.xlim(0, sz)
+    plt.ylim(-4, 4)
+    if yi == 1:
+        plt.title("Euclidean $k$-means")
+        
+
+#%%
+# =============================================================================
+#                   individual segemnts and perform clustering
+# =============================================================================
+        
+        
+R = []
+H = []
+for lista in all_segments:
+    df= lista[1]
+    label = df[1]['label'].iloc[0]
+    if label == 0:
+        
+        concated = [n['skin conductance'].tolist() for n in df]
+#        concated = sum(concated,[])
+        R.append(np.array(concated))
+    elif label == 1:
+        concated = [n['skin conductance'].tolist() for n in df]
+#        concated = sum(concated,[])
+        H.append(np.array(concated))
+
+hypo = []
+for n in H:
+    for n2 in n:
+        hypo.append(n2)
+        
+reactive = []
+for n in R:
+    for n2 in n:
+        reactive.append(n2)
+
+#%%
+        
+X = np.array(reactive)
+Y = np.array([0]*5243).reshape(5243,1)        
+        
+#X = np.array(hypo)
+#Y = np.array([1]*1842).reshape(1842,1)
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size = 0.20, random_state = 0)
+
+
+
+
+X_train = TimeSeriesScalerMeanVariance().fit_transform(X_train)  # Keep only 50 time series
+X_train = TimeSeriesResampler(sz=325).fit_transform(X_train)  # Make time series shorter
+sz = X_train.shape[1]
+
+# Euclidean k-means
+print("Euclidean k-means")
+km = TimeSeriesKMeans(n_clusters=6, verbose=True, random_state=seed)
+y_pred = km.fit_predict(X_train)
+
+plt.figure()
+for yi in range(6):
+    plt.subplot(3, 3, yi + 1)
+    for xx in X_train[y_pred == yi]:
+        plt.plot(xx.ravel(), "k-", alpha=.2)
+    plt.plot(km.cluster_centers_[yi].ravel(), "r-")
+    plt.xlim(0, sz)
+    plt.ylim(-4, 4)
+    if yi == 1:
+        plt.title("Euclidean $k$-means")        
+
+#%%
+# ============================================================================
+#                       Save results in xlsx format
+# =============================================================================
+    
+    result_df_export = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
+    for lista in All_comb_res:
+        for res in lista: 
+            result_df_export= result_df_export.append(res)
+    
+    result_df_export.to_excel(excel_writer = 'SVM_results/SVM_results_cross.xlsx')
+    
+    result_df_export_avg = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
+    for df in All_avgs:
+        result_df_export_avg = result_df_export_avg.append(df)
+    
+        
+    
+    result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg'  + str(gamma) + 'Gam-C' + str(C)  +'.xlsx')
+
+
+    #save snippet for each parameter combination.
+#    snippets = []
+    snippet = result_df_export_avg.sort_values(by=['recall'], ascending=False)[:10]
+    
+    reacall = np.max(snippet['recall'])
+    F1 = np.max(snippet['F1'])
+    precision = np.max(snippet['precision'])
+    
+    
+    Snippet_results.append([(gamma,C) , snippet])
+    
+    #get highest recall from 
+
+    
+    optimization_recall.append([(gamma,C) , reacall])
+    optimization_precision.append([(gamma,C) , precision])
+    optimization_F1.append([(gamma,C) , F1])
+
+
+
+
+
+
+#%%
+
     
     
     
