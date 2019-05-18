@@ -211,7 +211,7 @@ for idx,element in enumerate(Processed_EDA):
       All_df['SCR_Onsets'] = SCR_Onsets.values
       All_df['EDA_tonic'] = tonic.values
       All_df['EDA_Phasic'] = Phasic.values
-#
+#%%
 # =============================================================================
 #                       Cut Dataframe into 4s segments
 # =============================================================================
@@ -243,9 +243,9 @@ all_segments = cut_important(All_data,indexes_to_cut_big)
 #            plt.figure()
 #            plt.plot(tonic)
 #            plt.show()
-#
-##            processed_signals.append(processed_eda)   
-##      processed_signals.append(EDA)
+
+#            processed_signals.append(processed_eda)   
+#      processed_signals.append(EDA)
 
 
 
@@ -471,7 +471,7 @@ for i in range(0,len(R_area)):
     Dataset_R.loc[i] = data                
     
     
-#%%
+
 
 Dataset = pd.DataFrame(columns=['Area','Area2','Area3','Area4','Area5','Area6','Area7','Amplitude','Amplitude2','Amplitude3','Amplitude4','Amplitude5','Amplitude6','Amplitude7','Risetime','Risetime2','Risetime3','Risetime4','Risetime5','Risetime6','Risetime7','Settlingtime','Settlingtime2','Settlingtime3','Settlingtime4','Settlingtime5','Settlingtime6','Settlingtime7','Arclength1','Arclength2','Arclength3','Arclength4','Arclength5','Arclength6','Arclength7','HeartRate','HeartRate2','HeartRate3','HeartRate4','HeartRate5','HeartRate6','HeartRate7','Label'])
 
@@ -500,7 +500,7 @@ Dataset = sklearn.utils.shuffle(Dataset)
 #   Change here to consider different features in dataset before feeding SVM
 # =============================================================================
 
-#%%
+
 # =============================================================================
 #1. Load Dataset / get all combinations of features 
 # =============================================================================
@@ -543,7 +543,7 @@ DF_sets = []
 for combinationss in all_comb:
     for combi in combinationss:
         
-        df = pd.DataFrame( index = np.arange(0,1012))
+        df = pd.DataFrame( index = np.arange(0,len(all_segments)))
         name = ''
         set_of_comb=[]
         
@@ -554,7 +554,7 @@ for combinationss in all_comb:
         DF_sets.append([df,name])
 
  
-#%%
+
 # =============================================================================
 #                   Parameter optimization for following all features:
 # =============================================================================
@@ -636,27 +636,27 @@ result_df_export_avg = pd.DataFrame(columns=['accuracy','precision','recall','F1
 for df in All_avgs:
     result_df_export_avg = result_df_export_avg.append(df)
 
-    
 
 result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg.xlsx')
+
+
+
+
+
+
+
+
+
+
+
 #%%
-# =============================================================================
+# ================================================================================================================================================
 #                        Kmeans  on raw segmented data. 
-# =============================================================================
+# ================================================================================================================================================
  
 #%%
-import numpy
-import matplotlib.pyplot as plt
-from tslearn.clustering import TimeSeriesKMeans
-from tslearn.datasets import CachedDatasets
-from tslearn.preprocessing import TimeSeriesScalerMeanVariance, TimeSeriesResampler
-
-seed = 0
-numpy.random.seed(seed)
 
 
-
-#%%
 
 # =============================================================================
 #                   Extract sequences for clustering
@@ -674,9 +674,14 @@ for lista in All_data:
         
         
         
-#%%
-        
-        
+
+import numpy
+import matplotlib.pyplot as plt
+from tslearn.clustering import TimeSeriesKMeans
+from tslearn.datasets import CachedDatasets
+from tslearn.preprocessing import TimeSeriesScalerMeanVariance, TimeSeriesResampler       
+seed = 0
+numpy.random.seed(seed)
 # =============================================================================
 #              project difference between clusters?
 # =============================================================================
@@ -698,7 +703,7 @@ A_seqs_noid = [n[:63398] for n in A_seqs_noid ]
 A_seqs_noid = np.array(A_seqs_noid)
 
 
-Xtrain = A_seqs_noid
+X_train = A_seqs_noid
 #length of sequence, 63398/195hz = 325 ponts per secons resample to that sieze
 X_train = TimeSeriesScalerMeanVariance().fit_transform(X_train)  # Keep only 50 time series
 X_train = TimeSeriesResampler(sz=325).fit_transform(X_train)  # Make time series shorter
@@ -733,17 +738,23 @@ for ID in id_list1:
 cluster6 = []
 for ID in id_list6:
     cluster6.append(All_data[ID])
-    
-    
-    
-#
 
-    
+
+
+count1 = [n[1]['label'].iloc[0] for n in cluster6]
+count1 = np.array(count1)
+np.count_nonzero(count1 == 1)
+
+
+count2 = [n[1]['label'].iloc[0] for n in cluster1]
+count2 = np.array(count2)
+np.count_nonzero(count2 == 1)
+
 
 #%%
 # =============================================================================
 #               cut and make sequences into correct chapr for Kmeans
-# =============================================================================      
+# =============================================================================
         
 lengths = [len(n) for n in H_seqs]
 lens = np.min(lengths) #63398
@@ -949,7 +960,6 @@ for n in R:
     for n2 in n:
         reactive.append(n2)
 
-#%%
         
 X = np.array(reactive)
 Y = np.array([0]*5243).reshape(5243,1)        
@@ -982,77 +992,42 @@ for yi in range(6):
     if yi == 1:
         plt.title("Euclidean $k$-means")        
 
-#%%
-# ============================================================================
-#                       Save results in xlsx format
-# =============================================================================
-    
-    result_df_export = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
-    for lista in All_comb_res:
-        for res in lista: 
-            result_df_export= result_df_export.append(res)
-    
-    result_df_export.to_excel(excel_writer = 'SVM_results/SVM_results_cross.xlsx')
-    
-    result_df_export_avg = pd.DataFrame(columns=['accuracy','precision','recall','F1','Combination'])  
-    for df in All_avgs:
-        result_df_export_avg = result_df_export_avg.append(df)
-    
-        
-    
-    result_df_export_avg.to_excel(excel_writer = 'SVM_results/SVM_results_avg'  + str(gamma) + 'Gam-C' + str(C)  +'.xlsx')
-
-
-    #save snippet for each parameter combination.
-#    snippets = []
-    snippet = result_df_export_avg.sort_values(by=['recall'], ascending=False)[:10]
-    
-    reacall = np.max(snippet['recall'])
-    F1 = np.max(snippet['F1'])
-    precision = np.max(snippet['precision'])
-    
-    
-    Snippet_results.append([(gamma,C) , snippet])
-    
-    #get highest recall from 
-
-    
-    optimization_recall.append([(gamma,C) , reacall])
-    optimization_precision.append([(gamma,C) , precision])
-    optimization_F1.append([(gamma,C) , F1])
 
 
 
 
 
 
-#%%
 
-    
-    
-    
 
-#%%
 
-results_f1 = []
-results_recall= []
-for lista in Snippet_results:
-    maxf1 = np.max(lista[1]['F1'])
-    maxrecall = np.max(lista[1]['recall'])
-    results_f1.append(maxf1)
-    results_recall.append(maxrecall)
-    
 
-#plt.plot(results_f1)
-plt.plot(results_recall)
-plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #%%             Baseline classifier for 7 segements
 
-# =============================================================================
+# ================================================================================================================================================
 #                       PLOT BASELINE
-# =============================================================================
+# ================================================================================================================================================
 
 H_segmentmeans_log = [np.log(np.mean(item)) for item in H_sequences]
 R_segmentmeans_log = [np.log(np.mean(item)) for item in R_sequences]
@@ -1067,16 +1042,6 @@ plt.xlabel('Log(µS)')
 plt.title('Frequency of sequences with a specific µS mean')
 plt.show() 
     
-#H_segmentmeans = [np.mean(item) for item in H_sequences]
-#R_segmentmeans = [np.mean(item) for item in R_sequences]
-#
-#plt.hist(R_segmentmeans, bins =50,alpha = 1, color = 'green' )
-#plt.hist(H_segmentmeans, bins =50,alpha = 0.5,color = 'red' )
-#plt.ylabel('Frequency')
-#plt.xlabel('µS)')
-#plt.title('Density Plots of Hypo and Reactive groups')
-#plt.show() 
-#    
 
 #%%
 from sklearn.metrics import accuracy_score, recall_score,f1_score,precision_score
@@ -1113,25 +1078,4 @@ print('f1      ',f1_score(label,classified))
 
 
 #accuracy_score(label, classified, normalize=False)
-
-#%%
-
-
-
-
-
-#
-#X = np.array(list(Dataset[['means']]))
-#X = X.reshape(-1, 1)
-
-X = Dataset[['means']]
-#X = Dataset[['means','Area','Amplitude']]
-
-y = Dataset['Label']
-
-
-A = my_svm_model(X,y)
-
-
-#A1 = list(kf.split(X))[0][0]
 
